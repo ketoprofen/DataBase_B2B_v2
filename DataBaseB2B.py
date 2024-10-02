@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from notifications_window import NotificationsWindow
 from stato_targa_tab import StatoTargaTab
 from login_dialog import LoginDialog
+from statistics_tab import StatisticsTab
 from data_importer import import_data
 from data_exporter import execute_extrapolate
 
@@ -303,12 +304,21 @@ class MainWindow(QWidget):
         # StatoTarga Tab (new tab for Stato and Targa)
         self.stato_targa_tab = StatoTargaTab(self.conn)
 
+        # Statistics Tab
+        self.statistics_tab = StatisticsTab(self.conn, self)
+        self.statistics_layout = QVBoxLayout()
 
 
-        # Add tabs to tab widget
+        # Add the new tab to the tab widget
+        self.statistics_tab.setLayout(self.statistics_layout)
+
+
+        # --- AICI SUNT TABURILE --- #
         self.tab_widget.addTab(self.data_tab, "Dati")
         self.tab_widget.addTab(self.notifications_tab, "Notifiche")
         self.tab_widget.addTab(self.stato_targa_tab, "Stato Lavorazioni")
+        # Add the new tab to the tab widget
+        self.tab_widget.addTab(self.statistics_tab, "Statistics")
 
         self.layout.addWidget(self.tab_widget)
         self.setLayout(self.layout)
