@@ -1,14 +1,11 @@
 import sys
 import sqlite3
-import bcrypt
-import os
-from datetime import datetime, timedelta
 import pandas as pd
 from PyQt5.QtWidgets import (
     QApplication, QWidget, QDialog, QLineEdit, QPushButton,
     QVBoxLayout, QHBoxLayout, QMessageBox, QTableView, QHeaderView,
     QFormLayout, QComboBox, QTextEdit, QSpinBox, QGroupBox, QCheckBox,
-    QRadioButton, QButtonGroup,  QInputDialog, QFileDialog,
+    QRadioButton, QButtonGroup, QInputDialog, QFileDialog,
     QTabWidget
 )
 from PyQt5.QtSql import QSqlDatabase, QSqlQueryModel
@@ -19,7 +16,8 @@ from datetime import datetime, timedelta
 from notifications_window import NotificationsWindow
 from stato_targa_tab import StatoTargaTab
 from login_dialog import LoginDialog
-
+from data_importer import import_data
+from data_exporter import execute_extrapolate
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -109,7 +107,7 @@ class MainWindow(QWidget):
         self.date_incarico = QLineEdit()
         self.date_incarico.setMaxLength(10)
         self.date_incarico.setMaximumWidth(200)
-        self.date_incarico.returnPressed.connect(self.add_record_wrapper)
+        self.date_incarico.returnPressed.connect(self.add_record)
 
         self.insert_layout.addRow('Flotta:', self.text_flotta)
         self.insert_layout.addRow('Targa:', self.text_targa)
@@ -119,7 +117,7 @@ class MainWindow(QWidget):
         incarico_layout = QHBoxLayout()
         incarico_layout.addWidget(self.date_incarico)
         self.button_add = QPushButton('Aggiungi Record')
-        self.button_add.clicked.connect(self.add_record_wrapper)
+        self.button_add.clicked.connect(self.add_record)
         self.button_add.setMaximumWidth(120)
         incarico_layout.addWidget(self.button_add)
         incarico_layout.addStretch()
@@ -135,9 +133,9 @@ class MainWindow(QWidget):
         self.search_targa = QLineEdit()
         self.search_targa.setMaxLength(16)
         self.search_targa.setMaximumWidth(200)
-        self.search_targa.returnPressed.connect(self.search_record_wrapper)
+        self.search_targa.returnPressed.connect(self.search_record)
         self.button_search = QPushButton('Cerca')
-        self.button_search.clicked.connect(self.search_record_wrapper)
+        self.button_search.clicked.connect(self.search_record)
         self.button_search.setMaximumWidth(80)
 
         search_layout = QHBoxLayout()
@@ -188,10 +186,10 @@ class MainWindow(QWidget):
         self.update_fields_layout.addRow('Note:', self.text_note)
 
         self.button_update = QPushButton('Aggiorna Record')
-        self.button_update.clicked.connect(self.update_record_wrapper)
+        self.button_update.clicked.connect(self.update_record)
         self.button_update.setMaximumWidth(120)
         self.button_delete = QPushButton('Elimina Record')
-        self.button_delete.clicked.connect(self.delete_record_wrapper)
+        self.button_delete.clicked.connect(self.delete_record)
         self.button_delete.setMaximumWidth(120)
         self.button_back_update = QPushButton('Indietro')
         self.button_back_update.clicked.connect(self.hide_update_fields)
@@ -248,7 +246,7 @@ class MainWindow(QWidget):
         self.radio_stato_report.toggled.connect(self.update_extrapolate_options)
 
         self.button_extrapolate_execute = QPushButton('Estrapola Excel')
-        self.button_extrapolate_execute.clicked.connect(self.execute_extrapolate)
+        self.button_extrapolate_execute.clicked.connect(lambda: execute_extrapolate(self))
         self.button_back = QPushButton('Indietro')
         self.button_back.clicked.connect(self.toggle_extrapolate_group)
         button_layout_extrapolate = QHBoxLayout()
@@ -265,7 +263,7 @@ class MainWindow(QWidget):
 
         # Import Data Button
         self.button_import = QPushButton('Importa Dati')
-        self.button_import.clicked.connect(self.import_data_wrapper)
+        self.button_import.clicked.connect(lambda: import_data(self))
         self.button_import.setMaximumWidth(150)
 
         # Arrange layouts
@@ -341,66 +339,6 @@ class MainWindow(QWidget):
             self.text_flotta_extrapolate.setEnabled(False)
             self.checkbox_exclude_consegnata.setEnabled(False)
 
-    def execute_extrapolate(self):
-        if self.radio_all_data.isChecked():
-            query = 'SELECT * FROM records'
-            params = []
-            filename = 'DataBaseB2B.xlsx'
-        elif self.radio_exclude_consegnata.isChecked():
-            query = 'SELECT * FROM records WHERE stato != ?'
-            params = ['Consegnata']
-            filename = 'DataBaseB2B_lavorazione.xlsx'
-        elif self.radio_by_flotta.isChecked():
-            flotta = self.text_flotta_extrapolate.text().upper()
-            if not flotta:
-                QMessageBox.warning(self, 'Errore di input', 'Per favore, inserisci la Flotta.')
-                return
-            only_consegnata = self.checkbox_exclude_consegnata.isChecked()
-            query = 'SELECT * FROM records WHERE flotta = ?'
-            params = [flotta]
-            if only_consegnata:
-                query += ' AND stato = ?'
-                params.append('Consegnata')
-                filename = f'DataBaseB2B_{flotta}_consegnata.xlsx'
-            else:
-                filename = f'DataBaseB2B_{flotta}.xlsx'
-        elif self.radio_stato_report.isChecked():
-            query = '''
-                SELECT targa, stato, data_consegnata 
-                FROM records 
-                WHERE NOT (stato = "Consegnata" AND data_consegnata < ?)
-            '''
-            params = [datetime.now().strftime('%d/%m/%Y')]
-            filename = 'DataBaseB2B_stato.xlsx'
-        else:
-            QMessageBox.warning(self, 'Errore di selezione', 'Per favore, seleziona un\'opzione.')
-            return
-
-        try:
-            df = pd.read_sql_query(query, self.conn, params=params)
-            if df.empty:
-                QMessageBox.information(self, 'Nessun dato', 'Nessun dato trovato per i criteri selezionati.')
-                return
-
-            if self.radio_stato_report.isChecked():
-                stato_counts = df['stato'].value_counts()
-                total_count = len(df)
-                df_summary = pd.DataFrame({
-                    'Stato': stato_counts.index,
-                    'Conteggio': stato_counts.values
-                })
-                total_row = pd.DataFrame({'Stato': ['Totale'], 'Conteggio': [total_count]})
-                df_summary = pd.concat([df_summary, total_row], ignore_index=True)
-                with pd.ExcelWriter(filename) as writer:
-                    df.to_excel(writer, index=False, sheet_name='Dati')
-                    df_summary.to_excel(writer, index=False, sheet_name='Riepilogo')
-            else:
-                df.to_excel(filename, index=False)
-            QMessageBox.information(self, 'Successo', f'Dati esportati nel file {filename}')
-            self.extrapolate_group.hide()
-        except Exception as e:
-            QMessageBox.warning(self, 'Errore', str(e))
-
     def load_data(self):
         self.model = QSqlQueryModel(self)
         self.model.setQuery('SELECT * FROM records ORDER BY id DESC LIMIT 40', self.db)
@@ -420,18 +358,6 @@ class MainWindow(QWidget):
         self.table.hideColumn(0)  # Hide ID column
         self.table.setEditTriggers(QTableView.NoEditTriggers)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-
-    def add_record_wrapper(self):
-        self.add_record()
-
-    def search_record_wrapper(self):
-        self.search_record()
-
-    def update_record_wrapper(self):
-        self.update_record()
-
-    def delete_record_wrapper(self):
-        self.delete_record()
 
     def add_record(self):
         flotta = self.text_flotta.text().upper()
@@ -654,94 +580,6 @@ class MainWindow(QWidget):
             return current_date.strftime('%d/%m/%Y')
         except ValueError:
             return None
-
-    def import_data_wrapper(self):
-        self.import_data()
-
-    def import_data(self):
-        options = QFileDialog.Options()
-        file_path, _ = QFileDialog.getOpenFileName(self, "Importa Dati", "",
-                                                "Excel Files (*.xlsx);;CSV Files (*.csv)", options=options)
-        if file_path:
-            try:
-                # Load the data
-                if file_path.endswith('.xlsx'):
-                    df = pd.read_excel(file_path)
-                elif file_path.endswith('.csv'):
-                    df = pd.read_csv(file_path)
-                else:
-                    QMessageBox.warning(self, 'Formato non supportato', 'Seleziona un file .xlsx o .csv')
-                    return
-
-                # Required columns expected by the database
-                required_columns = [
-                    'flotta', 'targa', 'modello', 'entrata', 'data_incarico',
-                    'ditta', 'inizio_mecc', 'fine_mecc', 'inizio_carr', 'fine_carr',
-                    'pezzi_carr', 'stato', 'note', 'data_consegnata'
-                ]
-                
-                # Function to match similar column names (fuzzy matching)
-                def find_closest_column(required_col, available_columns):
-                    for col in available_columns:
-                        if required_col.lower() in col.lower() or col.lower() in required_col.lower():
-                            return col
-                    return None
-
-                # Try to map the columns based on fuzzy matching
-                column_mapping = {}
-                for required_col in required_columns:
-                    matched_col = find_closest_column(required_col, df.columns)
-                    if matched_col:
-                        column_mapping[required_col] = matched_col
-
-                # Only import the matched columns
-                matched_columns = [col for col in required_columns if col in column_mapping]
-                
-                # Log any missing columns that couldn't be matched
-                missing_columns = [col for col in required_columns if col not in column_mapping]
-                if missing_columns:
-                    print(f"Skipping missing columns: {missing_columns}")
-                
-                if matched_columns:
-                    for index, row in df.iterrows():
-                        try:
-                            # Extract values for matched columns and convert Timestamps to string
-                            record_values = []
-                            for col in matched_columns:
-                                value = row[column_mapping[col]]
-                                
-                                # Check if the value is a Timestamp and convert it to a string
-                                if isinstance(value, pd.Timestamp):
-                                    value = value.strftime('%Y-%m-%d')  # Format as 'YYYY-MM-DD'
-                                elif pd.isna(value):
-                                    value = ''  # Handle missing values
-                                
-                                record_values.append(value)
-
-                            # Prepare the INSERT SQL statement dynamically based on matched columns
-                            placeholders = ', '.join(['?' for _ in matched_columns])
-                            sql = f"INSERT INTO records ({', '.join(matched_columns)}) VALUES ({placeholders})"
-
-                            # Execute the SQL statement with the extracted values
-                            self.cursor.execute(sql, tuple(record_values))
-
-                        except Exception as e:
-                            print(f"Error inserting record at row {index}: {e}")
-                            continue  # Skip problematic rows
-
-                    self.conn.commit()
-                    print(f"Successfully imported data with available columns: {matched_columns}")
-
-                    QMessageBox.information(self, 'Successo', 'Dati importati con successo.')
-                    self.load_data()
-                    self.notifications_tab.load_notifications()
-                else:
-                    QMessageBox.warning(self, 'Errore di formato', 'Nessuna colonna corrisponde ai dati richiesti.')
-
-            except Exception as e:
-                QMessageBox.warning(self, 'Errore', str(e))
-
-
 
     def check_notifications(self):
         self.notifications_tab.load_notifications()
