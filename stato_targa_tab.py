@@ -1,3 +1,4 @@
+# stato_targa_tab.py
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QTableView, QHeaderView, QMessageBox
 from PyQt5.QtCore import Qt, QDate
 from PyQt5.QtGui import QColor, QStandardItemModel, QStandardItem, QPalette

@@ -1,3 +1,4 @@
+# login_dialog.py
 from PyQt5.QtWidgets import QDialog, QLabel, QLineEdit, QPushButton, QVBoxLayout, QMessageBox
 import bcrypt
 import sqlite3

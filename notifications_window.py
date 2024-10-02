@@ -1,3 +1,4 @@
+# notifications_window.py
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QTableView, QHeaderView
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QStandardItemModel, QStandardItem, QPalette

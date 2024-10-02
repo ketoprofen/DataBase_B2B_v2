@@ -1,3 +1,4 @@
+# select_record_dialog.py
 from PyQt5.QtWidgets import QDialog , QVBoxLayout , QListWidget , QHBoxLayout , QPushButton , QMessageBox
     
 class SelectRecordDialog(QDialog):
