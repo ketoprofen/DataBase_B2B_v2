@@ -94,16 +94,21 @@ class StatoTargaTab(QWidget):
             'Altri Lavori', 'Pronta', 'Consegnata'
         ]
 
-        flotta_filter = self.search_flotta.text().upper().strip()
+        # Extract the search filter from a single input field
+        search_filter = self.search_flotta.text().upper().strip()
         today_str = QDate.currentDate().toString('dd/MM/yyyy')
 
-        if flotta_filter:
+        # Construct the query to filter by flotta, targa, or ditta using a single input field
+        if search_filter:
             query = '''
-                SELECT targa, stato, data_incarico, data_consegnata
+                SELECT targa, stato, ditta, data_incarico, data_consegnata
                 FROM records
-                WHERE flotta = ? AND (stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?))
+                WHERE (flotta LIKE ? OR targa LIKE ? OR ditta LIKE ?)
+                AND (stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?))
             '''
-            self.cursor.execute(query, (flotta_filter, today_str))
+            # Use the same search term for all three fields
+            search_param = f'%{search_filter}%'
+            self.cursor.execute(query, (search_param, search_param, search_param, today_str))
         else:
             query = '''
                 SELECT targa, stato, data_incarico, data_consegnata

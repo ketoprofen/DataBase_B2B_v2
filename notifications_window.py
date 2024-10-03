@@ -91,6 +91,33 @@ class NotificationsWindow(QWidget):
         self.cursor.execute(query)
         records = self.cursor.fetchall()
 
+
+
+        # # Extract the search filter from a single input field
+        # search_filter = self.search_flotta.text().upper().strip()
+        # today_str = QDate.currentDate().toString('dd/MM/yyyy')
+
+        # # Construct the query to filter by flotta, targa, or ditta using a single input field
+        # if search_filter:
+        #     query = '''
+        #         SELECT targa, stato, ditta, data_incarico, data_consegnata
+        #         FROM records
+        #         WHERE (flotta LIKE ? OR targa LIKE ? OR ditta LIKE ?)
+        #         AND (stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?))
+        #     '''
+        #     # Use the same search term for all three fields
+        #     search_param = f'%{search_filter}%'
+        #     self.cursor.execute(query, (search_param, search_param, search_param, today_str))
+        # else:
+        #     query = '''
+        #         SELECT targa, stato, data_incarico, data_consegnata
+        #         FROM records
+        #         WHERE stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?)
+        #     '''
+        #     self.cursor.execute(query, (today_str,))
+
+        # records = self.cursor.fetchall()
+
         notifications = []
         for record in records:
             data_incarico_str = record['data_incarico']
