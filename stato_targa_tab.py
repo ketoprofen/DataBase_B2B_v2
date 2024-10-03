@@ -175,7 +175,6 @@ class StatoTargaTab(QWidget):
         working_days = sum(1 for day in day_generator if day.weekday() < 5)
         return working_days
 
-   
     def export_to_excel(self):
         # Get the current Flotta name for the filename
         flotta_filter = self.search_flotta.text().upper().strip() or "Flotta_All"
@@ -183,7 +182,7 @@ class StatoTargaTab(QWidget):
         # Get the current working directory (location from where the script was run)
         current_dir = os.getcwd()
 
-        # Define the filename based on the Flotta and save in the current directory
+        # Define the filename based on the Flotta and save it in the current directory
         filename = f"{flotta_filter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
         file_path = os.path.join(current_dir, filename)
 
@@ -203,17 +202,37 @@ class StatoTargaTab(QWidget):
 
         targas = [row['targa'] for row in self.cursor.fetchall()]
 
-        # Create a dictionary to map targa to their corresponding stato
-        targa_dict = {targa: {stato: '' for stato in stati} for targa in targas}
-        self.cursor.execute('SELECT targa, stato FROM records')
+        # Initialize a dictionary to collect 'targa' values by their status
+        status_dict = {stato: [] for stato in stati}
+        
+        # Query for records with the required conditions
+        self.cursor.execute('SELECT targa, stato, data_consegnata FROM records')
         for row in self.cursor.fetchall():
             targa = row['targa']
             stato = row['stato']
-            if targa in targa_dict and stato in stati:
-                targa_dict[targa][stato] = targa
+            data_consegnata = row['data_consegnata']
+            
+            # Include "Consegnata" only if "data_consegnata" is not None and matches today's date
+            if stato == 'Consegnata':
+                print('stato - consegnata')
+                if data_consegnata is not None:
+                    consegnata_date = datetime.strptime(data_consegnata, '%d/%m/%Y')
+                    print(consegnata_date.date() , datetime.today().date())
+                    if consegnata_date.date() == datetime.today().date():
+                        status_dict[stato].append(targa)
+                    
+            else:
+                if stato in status_dict:
+                    status_dict[stato].append(targa)
 
-        # Convert the dictionary to a DataFrame
-        df = pd.DataFrame.from_dict(targa_dict, orient='index', columns=stati)
+        # Find the maximum number of entries for any status to create a balanced DataFrame
+        max_entries = max(len(entries) for entries in status_dict.values())
+
+        # Create a DataFrame by padding each status list to match max_entries
+        for stato in stati:
+            status_dict[stato].extend([None] * (max_entries - len(status_dict[stato])))
+
+        df = pd.DataFrame(status_dict)
 
         # Add custom header row with Flotta name and timestamp
         export_data = pd.DataFrame([[
@@ -224,7 +243,8 @@ class StatoTargaTab(QWidget):
         # Append the data under the custom header
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
             export_data.to_excel(writer, sheet_name='Sheet1', index=False, header=False, startrow=0)
-            df.to_excel(writer, sheet_name='Sheet1', startrow=2, index=False)  # Export without Targa index
+            # Write the DataFrame with column headers starting from row 2
+            df.to_excel(writer, sheet_name='Sheet1', startrow=2, index=False, header=True)
 
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
 
