@@ -243,7 +243,28 @@ class StatoTargaTab(QWidget):
             export_data.to_excel(writer, sheet_name='Sheet1', index=False, header=False, startrow=0)
             # Write the DataFrame with column headers starting from row 2
             df.to_excel(writer, sheet_name='Sheet1', startrow=2, index=False, header=True)
+            
+            # Get the XlsxWriter workbook and worksheet objects
+            workbook  = writer.book
+            worksheet = writer.sheets['Sheet1']
+            
+            # Calculate the row for placing the formulas (one row below the last data row)
+            formula_row = max_entries + 4  # Add 3 to account for header rows and 0-index
+            
+                    
+            worksheet.write_formula(f'A{formula_row}', f'COUNTIF(A4:A{formula_row-1},"<>")')
+            worksheet.write_formula(f'B{formula_row}', f'COUNTIF(B4:B{formula_row-1},"<>")')
+            worksheet.write_formula(f'C{formula_row}', f'COUNTIF(C4:C{formula_row-1},"<>")')
+            worksheet.write_formula(f'D{formula_row}', f'COUNTIF(D4:D{formula_row-1},"<>")')
+            worksheet.write_formula(f'E{formula_row}', f'COUNTIF(E4:E{formula_row-1},"<>")')
+            worksheet.write_formula(f'F{formula_row}', f'COUNTIF(F4:F{formula_row-1},"<>")')
+            worksheet.write_formula(f'G{formula_row}', f'COUNTIF(G4:G{formula_row-1},"<>")')
+            worksheet.write_formula(f'H{formula_row}', f'COUNTIF(H4:H{formula_row-1},"<>")')
+            worksheet.write_formula(f'I{formula_row}', f'COUNTIF(I4:I{formula_row-1},"<>")')
+            worksheet.write(formula_row, 0, 'Total', workbook.add_format({'bold': True}))
+            worksheet.write_formula(f'B{formula_row+1}', f'SUM(A{formula_row}:I{formula_row})')
 
+            # Add any additional formulas as needed for other columns
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
 
     def showEvent(self, event):
