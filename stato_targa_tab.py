@@ -24,18 +24,12 @@ class StatoTargaTab(QWidget):
         self.search_flotta.setFixedSize(150, 22)
         self.search_flotta.textChanged.connect(self.load_data)
 
-        
-        self.refresh_button = QPushButton("Refresh")
-        self.refresh_button.setFixedSize(80, 22)
-        self.refresh_button.clicked.connect(self.load_data)
-
         self.export_button = QPushButton("Esporta Excel")
         self.export_button.setFixedSize(100, 22)
         self.export_button.clicked.connect(self.export_to_excel)
         
         button_layout = QHBoxLayout()
         button_layout.addWidget(self.search_flotta)
-        button_layout.addWidget(self.refresh_button)
         button_layout.addWidget(self.export_button)
         button_layout.addStretch()
 
