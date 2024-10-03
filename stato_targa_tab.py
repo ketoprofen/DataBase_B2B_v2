@@ -35,9 +35,19 @@ class StatoTargaTab(QWidget):
 
         layout.addLayout(button_layout)
 
+        # Layouts for row 1 and row 2 sums
+        self.sum_layout = QHBoxLayout()
+        self.total_layout = QHBoxLayout()
+
+       
+
         # Table view for Stato and Targa
         self.table_view = QTableView()
         layout.addWidget(self.table_view)
+
+         # Add these layouts to the main layout
+        layout.addLayout(self.sum_layout)
+        layout.addLayout(self.total_layout)
         
          # Legend
         legend_layout = QHBoxLayout()
@@ -102,7 +112,6 @@ class StatoTargaTab(QWidget):
             '''
             self.cursor.execute(query, (today_str,))
 
-
         records = self.cursor.fetchall()
 
         # Initialize the table model
@@ -128,6 +137,25 @@ class StatoTargaTab(QWidget):
         # Find the maximum number of rows required
         max_rows = max(len(targas) for targas in stato_columns.values())
 
+        # Calculate sum for each column (ignore empty cells)
+        column_sums = [len([targa for targa in stato_columns[stato] if targa[0]]) for stato in stati]
+
+        # Clear previous sum labels
+        self.clear_layout(self.sum_layout)
+        self.clear_layout(self.total_layout)
+
+        # Add sum labels to sum_layout
+        for sum_value in column_sums:
+            # i want to concatenate the string " " with the str(sum_value) to make it look like "  5"
+            
+            sum_label = QLabel("      " + str(sum_value))
+            self.sum_layout.addWidget(sum_label)
+
+        # Add "Total" label and total sum to total_layout
+        total_sum = sum(column_sums)
+        total_label = QLabel("Total: {}".format(total_sum))
+        self.total_layout.addWidget(total_label)
+
         # Fill each column (stato) separately with targa and color the cell
         for stato in stati:
             col_index = stati.index(stato)
@@ -145,6 +173,14 @@ class StatoTargaTab(QWidget):
 
         self.table_view.setModel(standard_model)
         self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
+    def clear_layout(self, layout):
+        """Utility function to clear all widgets in a layout."""
+        while layout.count():
+            item = layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
 
     def get_notification_color(self, data_incarico):
         """Get color based on working days."""
