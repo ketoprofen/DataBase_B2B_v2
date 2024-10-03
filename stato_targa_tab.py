@@ -214,10 +214,8 @@ class StatoTargaTab(QWidget):
             
             # Include "Consegnata" only if "data_consegnata" is not None and matches today's date
             if stato == 'Consegnata':
-                print('stato - consegnata')
                 if data_consegnata is not None:
                     consegnata_date = datetime.strptime(data_consegnata, '%d/%m/%Y')
-                    print(consegnata_date.date() , datetime.today().date())
                     if consegnata_date.date() == datetime.today().date():
                         status_dict[stato].append(targa)
                     
