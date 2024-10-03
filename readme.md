@@ -19,7 +19,7 @@ ___\_/____________\_/____
 - [Usage](#usage)
 - [Dependencies](#dependencies)
 - [Future Improvements](#future-improvements)
-- [Useful comands](#useful-comands)
+- [Useful comands](#useful-commands)
 
 ## Introduction
 **DataBaseB2B** is a Python-based application designed to manage and track vehicle data in a business-to-business context. It provides a comprehensive interface for inserting, updating, searching, and exporting data related to vehicle repairs, maintenance status, and more.
