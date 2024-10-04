@@ -39,47 +39,45 @@ class StatoTargaTab(QWidget):
         self.sum_layout = QHBoxLayout()
         self.total_layout = QHBoxLayout()
 
-       
-
         # Table view for Stato and Targa
         self.table_view = QTableView()
         layout.addWidget(self.table_view)
 
-         # Add these layouts to the main layout
+        # Add these layouts to the main layout
         layout.addLayout(self.sum_layout)
         layout.addLayout(self.total_layout)
         
-         # Legend
+        # Legend
         legend_layout = QHBoxLayout()
         legend_label = QLabel("Legenda:")
-        yellow_label = QLabel("10-15 giorni")
-        yellow_label.setAutoFillBackground(True)
-        yellow_palette = yellow_label.palette()
+        self.yellow_label = QLabel("10-15 giorni")  # Make this an instance variable
+        self.yellow_label.setAutoFillBackground(True)
+        yellow_palette = self.yellow_label.palette()
         yellow_palette.setColor(QPalette.Window, QColor('yellow'))
-        yellow_label.setPalette(yellow_palette)
-        yellow_label.setFixedSize(100, 20)
-        yellow_label.setAlignment(Qt.AlignCenter)
+        self.yellow_label.setPalette(yellow_palette)
+        self.yellow_label.setFixedSize(100, 20)
+        self.yellow_label.setAlignment(Qt.AlignCenter)
 
-        orange_label = QLabel("16-20 giorni")
-        orange_label.setAutoFillBackground(True)
-        orange_palette = orange_label.palette()
+        self.orange_label = QLabel("16-20 giorni")  # Make this an instance variable
+        self.orange_label.setAutoFillBackground(True)
+        orange_palette = self.orange_label.palette()
         orange_palette.setColor(QPalette.Window, QColor('orange'))
-        orange_label.setPalette(orange_palette)
-        orange_label.setFixedSize(100, 20)
-        orange_label.setAlignment(Qt.AlignCenter)
+        self.orange_label.setPalette(orange_palette)
+        self.orange_label.setFixedSize(100, 20)
+        self.orange_label.setAlignment(Qt.AlignCenter)
 
-        red_label = QLabel("Oltre 20 giorni")
-        red_label.setAutoFillBackground(True)
-        red_palette = red_label.palette()
+        self.red_label = QLabel("Oltre 20 giorni")  # Make this an instance variable
+        self.red_label.setAutoFillBackground(True)
+        red_palette = self.red_label.palette()
         red_palette.setColor(QPalette.Window, QColor('red'))
-        red_label.setPalette(red_palette)
-        red_label.setFixedSize(100, 20)
-        red_label.setAlignment(Qt.AlignCenter)
+        self.red_label.setPalette(red_palette)
+        self.red_label.setFixedSize(100, 20)
+        self.red_label.setAlignment(Qt.AlignCenter)
 
         legend_layout.addWidget(legend_label)
-        legend_layout.addWidget(yellow_label)
-        legend_layout.addWidget(orange_label)
-        legend_layout.addWidget(red_label)
+        legend_layout.addWidget(self.yellow_label)
+        legend_layout.addWidget(self.orange_label)
+        legend_layout.addWidget(self.red_label)
         legend_layout.addStretch()
 
         layout.addLayout(legend_layout)
@@ -111,13 +109,18 @@ class StatoTargaTab(QWidget):
             self.cursor.execute(query, (search_param, search_param, search_param, today_str))
         else:
             query = '''
-                SELECT targa, stato, data_incarico, data_consegnata
+                SELECT targa, stato, ditta, data_incarico, data_consegnata
                 FROM records
                 WHERE stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?)
             '''
             self.cursor.execute(query, (today_str,))
 
         records = self.cursor.fetchall()
+
+        # Initialize counts
+        count_10_15 = 0
+        count_16_20 = 0
+        count_over_20 = 0
 
         # Initialize the table model
         standard_model = QStandardItemModel()
@@ -130,14 +133,29 @@ class StatoTargaTab(QWidget):
         for row in records:
             targa = row['targa']
             stato = row['stato']
+            ditta = row['ditta'] or "---"  # Replace None or empty string with "---"
             data_incarico = row['data_incarico']
+
+            # Append ditta in parentheses to targa
+            targa_with_ditta = f"{targa} ({ditta})"
 
             if stato in stato_columns:
                 if stato == 'Consegnata':
                     color = 'green'  # Consegnata status should always be green
                 else: 
                     color = self.get_notification_color(data_incarico)
-                stato_columns[stato].append((targa, color))
+                    if color == 'yellow':
+                        count_10_15 += 1
+                    elif color == 'orange':
+                        count_16_20 += 1
+                    elif color == 'red':
+                        count_over_20 += 1
+                    stato_columns[stato].append((targa_with_ditta, color))
+
+        # Update legend labels with counts
+        self.yellow_label.setText(f"10-15 giorni ({count_10_15})")
+        self.orange_label.setText(f"16-20 giorni ({count_16_20})")
+        self.red_label.setText(f"Oltre 20 giorni ({count_over_20})")
 
         # Find the maximum number of rows required
         max_rows = max(len(targas) for targas in stato_columns.values())
@@ -152,7 +170,6 @@ class StatoTargaTab(QWidget):
         # Add sum labels to sum_layout
         for sum_value in column_sums:
             # i want to concatenate the string " " with the str(sum_value) to make it look like "  5"
-            
             sum_label = QLabel("      " + str(sum_value))
             self.sum_layout.addWidget(sum_label)
 
