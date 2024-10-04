@@ -80,43 +80,26 @@ class NotificationsWindow(QWidget):
         # Get search filter from search box
         search_text = self.search_box.text().upper().strip()
 
-        query = '''
-            SELECT * FROM records
-            WHERE stato != "Consegnata"
-        '''
-
+        # Construct the query to filter by flotta, targa, or ditta using a single input field
         if search_text:
-            query += f" AND targa LIKE '%{search_text}%'"
+            query = '''
+                SELECT *
+                FROM records
+                WHERE (flotta LIKE ? OR targa LIKE ? OR ditta LIKE ?)
+                AND stato != "Consegnata"
+            '''
+            # Use the same search term for all three fields
+            search_param = f'%{search_text}%'
+            self.cursor.execute(query, (search_param, search_param, search_param))
+        else:
+            query = '''
+                SELECT *
+                FROM records
+                WHERE stato != "Consegnata"
+            '''
+            self.cursor.execute(query)
 
-        self.cursor.execute(query)
         records = self.cursor.fetchall()
-
-
-
-        # # Extract the search filter from a single input field
-        # search_filter = self.search_flotta.text().upper().strip()
-        # today_str = QDate.currentDate().toString('dd/MM/yyyy')
-
-        # # Construct the query to filter by flotta, targa, or ditta using a single input field
-        # if search_filter:
-        #     query = '''
-        #         SELECT targa, stato, ditta, data_incarico, data_consegnata
-        #         FROM records
-        #         WHERE (flotta LIKE ? OR targa LIKE ? OR ditta LIKE ?)
-        #         AND (stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?))
-        #     '''
-        #     # Use the same search term for all three fields
-        #     search_param = f'%{search_filter}%'
-        #     self.cursor.execute(query, (search_param, search_param, search_param, today_str))
-        # else:
-        #     query = '''
-        #         SELECT targa, stato, data_incarico, data_consegnata
-        #         FROM records
-        #         WHERE stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?)
-        #     '''
-        #     self.cursor.execute(query, (today_str,))
-
-        # records = self.cursor.fetchall()
 
         notifications = []
         for record in records:
