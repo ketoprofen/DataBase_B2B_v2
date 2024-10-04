@@ -43,6 +43,22 @@ def execute_extrapolate(main_window):
         if df.empty:
             QMessageBox.information(main_window, 'Nessun dato', 'Nessun dato trovato per i criteri selezionati.')
             return
+        
+        # Remove the 'id' column if it exists
+        if 'id' in df.columns:
+            df = df.drop(columns=['id'])
+
+        # Reorder columns to place 'data_consegnata' between 'stato' and 'note'
+        columns_order = df.columns.tolist()
+        if 'data_consegnata' in columns_order:
+            # Ensure the desired order of columns if they exist
+            columns_order.remove('data_consegnata')
+            if 'note' in columns_order:
+                note_index = columns_order.index('note')
+                columns_order.insert(note_index, 'data_consegnata')
+            else:
+                columns_order.append('data_consegnata')
+            df = df[columns_order]
 
         if main_window.radio_stato_report.isChecked():
             stato_counts = df['stato'].value_counts()

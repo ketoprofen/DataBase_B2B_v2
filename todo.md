@@ -1,3 +1,2 @@
 # De facut
-- remove id from all excel exports 
-- data consegna in export database file - sa fie intre stato si note 
+- remove id from all excel exports // Done - Mentiune - acum la importul de date va trebui modificat sa nu se mai astepte ca id-ul sa fie handle-uit de excel
