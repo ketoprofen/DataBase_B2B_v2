@@ -136,8 +136,12 @@ class StatoTargaTab(QWidget):
             ditta = row['ditta'] or "---"  # Replace None or empty string with "---"
             data_incarico = row['data_incarico']
 
-            # Append ditta in parentheses to targa
-            targa_with_ditta = f"{targa} ({ditta})"
+            # Append ditta in parentheses to targa only if the stato is "Lavorazione Carr."
+            if stato == 'Lavorazione Carr.':
+                # This functionality can be used standalone (without the else) to always append ditta to targa
+                targa_with_ditta = f"{targa} ({ditta})"
+            else:
+                targa_with_ditta = targa
 
             if stato in stato_columns:
                 if stato == 'Consegnata':
