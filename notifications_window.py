@@ -26,10 +26,6 @@ class NotificationsWindow(QWidget):
         self.search_box.textChanged.connect(self.load_notifications)  # Update notifications when text changes
         button_layout.addWidget(self.search_box)
 
-        # Refresh Button
-        self.refresh_button = QPushButton('Refresh')
-        self.refresh_button.clicked.connect(self.refresh_notifications)
-        button_layout.addWidget(self.refresh_button)
 
         button_layout.addStretch()
 
@@ -41,34 +37,34 @@ class NotificationsWindow(QWidget):
         # Legend
         legend_layout = QHBoxLayout()
         legend_label = QLabel("Legenda:")
-        yellow_label = QLabel("10-15 giorni")
-        yellow_label.setAutoFillBackground(True)
-        yellow_palette = yellow_label.palette()
+        self.yellow_label = QLabel("10-15 giorni")  # Assign self
+        self.yellow_label.setAutoFillBackground(True)
+        yellow_palette = self.yellow_label.palette()
         yellow_palette.setColor(QPalette.Window, QColor('yellow'))
-        yellow_label.setPalette(yellow_palette)
-        yellow_label.setFixedSize(100, 20)
-        yellow_label.setAlignment(Qt.AlignCenter)
+        self.yellow_label.setPalette(yellow_palette)
+        self.yellow_label.setFixedSize(100, 20)
+        self.yellow_label.setAlignment(Qt.AlignCenter)
 
-        orange_label = QLabel("16-20 giorni")
-        orange_label.setAutoFillBackground(True)
-        orange_palette = orange_label.palette()
+        self.orange_label = QLabel("16-20 giorni")  # Assign self
+        self.orange_label.setAutoFillBackground(True)
+        orange_palette = self.orange_label.palette()
         orange_palette.setColor(QPalette.Window, QColor('orange'))
-        orange_label.setPalette(orange_palette)
-        orange_label.setFixedSize(100, 20)
-        orange_label.setAlignment(Qt.AlignCenter)
+        self.orange_label.setPalette(orange_palette)
+        self.orange_label.setFixedSize(100, 20)
+        self.orange_label.setAlignment(Qt.AlignCenter)
 
-        red_label = QLabel("Oltre 20 giorni")
-        red_label.setAutoFillBackground(True)
-        red_palette = red_label.palette()
+        self.red_label = QLabel("Oltre 20 giorni")  # Assign self
+        self.red_label.setAutoFillBackground(True)
+        red_palette = self.red_label.palette()
         red_palette.setColor(QPalette.Window, QColor('red'))
-        red_label.setPalette(red_palette)
-        red_label.setFixedSize(100, 20)
-        red_label.setAlignment(Qt.AlignCenter)
+        self.red_label.setPalette(red_palette)
+        self.red_label.setFixedSize(100, 20)
+        self.red_label.setAlignment(Qt.AlignCenter)
 
         legend_layout.addWidget(legend_label)
-        legend_layout.addWidget(yellow_label)
-        legend_layout.addWidget(orange_label)
-        legend_layout.addWidget(red_label)
+        legend_layout.addWidget(self.yellow_label)
+        legend_layout.addWidget(self.orange_label)
+        legend_layout.addWidget(self.red_label)
         legend_layout.addStretch()
 
         layout.addLayout(legend_layout)
@@ -116,6 +112,11 @@ class NotificationsWindow(QWidget):
             except Exception:
                 continue  # Skip records with invalid dates
 
+        # Initialize counts for legend labels to zero
+        count_10_15 = 0
+        count_16_20 = 0
+        count_over_20 = 0
+
         if notifications:
             df = pd.DataFrame(notifications)
 
@@ -130,6 +131,11 @@ class NotificationsWindow(QWidget):
                     return ''
 
             df['Color'] = df['working_days'].apply(get_color)
+
+            # Calculate row counts for each interval
+            count_10_15 = len(df[(df['working_days'] > 10) & (df['working_days'] <= 15)])
+            count_16_20 = len(df[(df['working_days'] > 15) & (df['working_days'] <= 20)])
+            count_over_20 = len(df[df['working_days'] > 20])
 
             standard_model = QStandardItemModel()
             headers = [col for col in df.columns if col != 'Color']
@@ -160,9 +166,10 @@ class NotificationsWindow(QWidget):
             standard_model = QStandardItemModel()
             self.table.setModel(standard_model)
 
-    def refresh_notifications(self):
-        self.search_box.clear()  # Clear the search box to reset the filter
-        self.load_notifications()
+        # Update legend labels with counts (even if they are 0)
+        self.yellow_label.setText(f"10-15 giorni ({count_10_15})")
+        self.orange_label.setText(f"16-20 giorni ({count_16_20})")
+        self.red_label.setText(f"Oltre 20 giorni ({count_over_20})")
 
     def calculate_working_days(self, start_date, end_date):
         if start_date > end_date:
