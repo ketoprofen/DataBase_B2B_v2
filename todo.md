@@ -1,8 +1,7 @@
 # De facut
 - Tab Notifiche sa poata sa fie ordonate pe coloane dinamic 
 - In toate excel-ulurile sa fie colorate based on age of item. working_days cu legenda 
-- Implement template for Stato Lavorazioni excel file (to be provided by Waffelns)(work in progess)
-- Need to modify more the template of the excel  
+- Need to modify more the template of the excel - add legenda  
 
 --------------------------------nice to have-----------------------------------------
 - dark theme 
