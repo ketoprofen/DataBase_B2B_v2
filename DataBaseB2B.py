@@ -109,10 +109,19 @@ class MainWindow(QWidget):
         self.date_incarico.setMaximumWidth(200)
         self.date_incarico.returnPressed.connect(self.add_record)
 
+        self.combo_stato_insert = QComboBox()
+        self.combo_stato_insert.addItems([
+            'Attesa Perizia', 'Attesa Autorizzazione', 'Attesa Ricambi',
+            'Lavorazione Carr.', 'Lavorazione Mecc.', 'Casa Madre',
+            'Altri Lavori', 'Pronta', 'Consegnata'
+        ])
+        self.combo_stato_insert.setMaximumWidth(200)
+
         self.insert_layout.addRow('Flotta:', self.text_flotta)
         self.insert_layout.addRow('Targa:', self.text_targa)
         self.insert_layout.addRow('Modello:', self.text_modello)
         self.insert_layout.addRow('Entrata:', self.date_entrata)
+        
 
         incarico_layout = QHBoxLayout()
         incarico_layout.addWidget(self.date_incarico)
@@ -123,6 +132,7 @@ class MainWindow(QWidget):
         incarico_layout.addStretch()
 
         self.insert_layout.addRow('Data Incarico:', incarico_layout)
+        self.insert_layout.addRow('Stato:', self.combo_stato_insert)
 
         self.insert_group.setLayout(self.insert_layout)
 
@@ -215,35 +225,23 @@ class MainWindow(QWidget):
 
         self.radio_all_data = QRadioButton('Estrapola tutti i dati in Excel')
         self.radio_exclude_consegnata = QRadioButton('Estrapola tutti i dati escludendo "Consegnata"')
-        self.radio_by_flotta = QRadioButton('Estrapola dati per Flotta')
-        self.radio_stato_report = QRadioButton('Estrapola Stato')
 
         self.radio_group = QButtonGroup()
         self.radio_group.addButton(self.radio_all_data)
         self.radio_group.addButton(self.radio_exclude_consegnata)
-        self.radio_group.addButton(self.radio_by_flotta)
-        self.radio_group.addButton(self.radio_stato_report)
 
         self.extrapolate_layout.addRow(self.radio_all_data)
         self.extrapolate_layout.addRow(self.radio_exclude_consegnata)
-        self.extrapolate_layout.addRow(self.radio_by_flotta)
-        self.extrapolate_layout.addRow(self.radio_stato_report)
 
-        self.text_flotta_extrapolate = QLineEdit()
-        self.text_flotta_extrapolate.setMaximumWidth(200)
         self.checkbox_exclude_consegnata = QCheckBox('Solo "Consegnata"')
         self.checkbox_exclude_consegnata.setChecked(False)
 
-        self.extrapolate_layout.addRow('Flotta:', self.text_flotta_extrapolate)
         self.extrapolate_layout.addRow('', self.checkbox_exclude_consegnata)
 
-        self.text_flotta_extrapolate.setEnabled(False)
         self.checkbox_exclude_consegnata.setEnabled(False)
 
         self.radio_all_data.toggled.connect(self.update_extrapolate_options)
         self.radio_exclude_consegnata.toggled.connect(self.update_extrapolate_options)
-        self.radio_by_flotta.toggled.connect(self.update_extrapolate_options)
-        self.radio_stato_report.toggled.connect(self.update_extrapolate_options)
 
         self.button_extrapolate_execute = QPushButton('Estrapola Excel')
         self.button_extrapolate_execute.clicked.connect(lambda: execute_extrapolate(self))
@@ -304,7 +302,6 @@ class MainWindow(QWidget):
         self.stato_targa_tab = StatoTargaTab(self.conn)
 
 
-
         # Add tabs to tab widget
         self.tab_widget.addTab(self.data_tab, "Dati")
         self.tab_widget.addTab(self.notifications_tab, "Notifiche")
@@ -332,12 +329,7 @@ class MainWindow(QWidget):
             self.extrapolate_group.show()
 
     def update_extrapolate_options(self):
-        if self.radio_by_flotta.isChecked():
-            self.text_flotta_extrapolate.setEnabled(True)
-            self.checkbox_exclude_consegnata.setEnabled(True)
-        else:
-            self.text_flotta_extrapolate.setEnabled(False)
-            self.checkbox_exclude_consegnata.setEnabled(False)
+        self.checkbox_exclude_consegnata.setEnabled(self.radio_exclude_consegnata.isChecked())
 
     def load_data(self):
         self.model = QSqlQueryModel(self)
@@ -365,8 +357,9 @@ class MainWindow(QWidget):
         modello = self.text_modello.text().upper()
         entrata = self.date_entrata.text()
         data_incarico = self.date_incarico.text()
+        stato = self.combo_stato_insert.currentText()
 
-        if not all([flotta, targa, modello, entrata, data_incarico]):
+        if not all([flotta, targa, modello, entrata, data_incarico, stato]):
             QMessageBox.warning(self, 'Errore di input', 'Per favore, riempi tutti i campi.')
             return
 
@@ -396,9 +389,9 @@ class MainWindow(QWidget):
         try:
             self.cursor.execute('''
                 INSERT INTO records (flotta, targa, modello, entrata, data_incarico,
-                                     gg_entrata_data_incarico, prev_uscita)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (flotta, targa, modello, entrata, data_incarico,
+                                     stato, gg_entrata_data_incarico, prev_uscita)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (flotta, targa, modello, entrata, data_incarico, stato,
                   gg_entrata_data_incarico, prev_uscita))
             self.conn.commit()
             self.text_flotta.clear()
@@ -406,6 +399,7 @@ class MainWindow(QWidget):
             self.text_modello.clear()
             self.date_entrata.clear()
             self.date_incarico.clear()
+            self.combo_stato_insert.setCurrentIndex(0)
             self.load_data()
             self.notifications_tab.load_notifications()
         except Exception as e:
@@ -457,7 +451,7 @@ class MainWindow(QWidget):
 
     def update_record(self):
         if not hasattr(self, 'record') or not self.record:
-            QMessageBox.warning(self, 'Errore', 'Nessun record selezionato per l\'aggiornamento.')
+            QMessageBox.warning(self, 'Errore', "Nessun record selezionato per l'aggiornamento.")
             return
         targa = self.record['targa']
         entrata = self.record['entrata']
@@ -589,7 +583,6 @@ class MainWindow(QWidget):
 
     def load_notifications_tab(self):
         self.notifications_tab.load_notifications()
-
 
 
 
