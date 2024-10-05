@@ -232,7 +232,6 @@ class StatoTargaTab(QWidget):
         return working_days
 
     def export_to_excel(self):
-        # Get the current Flotta name for the folder and filename
         flotta_filter = self.search_flotta.text().upper().strip() or "Flotta_All"
         folder_name = f"{flotta_filter}_{datetime.now().strftime('%Y%m%d')}"
 
@@ -242,10 +241,10 @@ class StatoTargaTab(QWidget):
         if not os.path.exists(folder_path):
             os.makedirs(folder_path)
 
-        # Define the filename and save it in the created folder
-        filename = f"{flotta_filter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+        # Define the filename in the format "Flotta dd/mm/yyyy hh:mm" and save it in the created folder
+        formatted_datetime = datetime.now().strftime('%d-%m-%Y %H-%M')  # Using '-' instead of '/' and ':' for a valid filename
+        filename = f"{flotta_filter} {formatted_datetime}.xlsx"
         file_path = os.path.join(folder_path, filename)
-
         # Define the initial specific states
         stati = [
             'Attesa Perizia', 'Autorizzare', 'Iniziare Carr.', 'Attesa Ricambi', 'Collaudo Carr.',
@@ -385,6 +384,18 @@ class StatoTargaTab(QWidget):
             total_count = sum(len([t for t in df[stato] if pd.notna(t)]) for stato in stati)
             worksheet.write(max_entries + 6, 0, 'Total', count_format)
             worksheet.write(max_entries + 6, 1, total_count, count_format)
+            
+            # Add the legend at the bottom
+            legend_start_row = max_entries + 8
+            worksheet.write(legend_start_row, 0, 'Legenda:', count_format)
+
+            legend_yellow_format = workbook.add_format({'bg_color': 'yellow', 'border': 1, 'align': 'center'})
+            legend_orange_format = workbook.add_format({'bg_color': 'orange', 'border': 1, 'align': 'center'})
+            legend_red_format = workbook.add_format({'bg_color': 'red', 'border': 1, 'align': 'center'})
+
+            worksheet.write(legend_start_row, 1, '10-15 giorni', legend_yellow_format)
+            worksheet.write(legend_start_row, 2, '16-20 giorni', legend_orange_format)
+            worksheet.write(legend_start_row, 3, 'Oltre 20 giorni', legend_red_format)
 
 
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
