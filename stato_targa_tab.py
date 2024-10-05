@@ -344,25 +344,23 @@ class StatoTargaTab(QWidget):
             workbook = writer.book
             worksheet = writer.sheets['Veicoli presenti']
 
-            # Set up header format
+            # Set up header format (bold)
             header_format = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1})
-            title_format = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter'})
-            timestamp_format = workbook.add_format({'align': 'right', 'valign': 'vcenter'})
+            title_format = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter', 'border': 1})
+            timestamp_format = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'bold': True, 'border': 1})
 
-            # Merge cells for the title and write the title
-            worksheet.merge_range('A1:R1', f'Veicoli {flotta_filter} presenti in RC TOP CAR', title_format)
-            worksheet.merge_range('A2:R2', f'Rev. 4.0', header_format)
-            worksheet.merge_range('A3:R3', f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', timestamp_format)
+            # Merge cells for the title and write the title (bold for title)
+            worksheet.merge_range('A2:R2', f'Veicoli {flotta_filter} presenti in RC TOP CAR | Rev. 4.0 | Generated on: {datetime.now().strftime("%d/%m/%Y Ore %H:%M")}', title_format)
 
-            # Write headers for each status column
+            # Write headers for each status column (bold headers)
             for stato_index, stato in enumerate(stati):
                 worksheet.write(4, stato_index, stato, header_format)
 
-            # Apply color formatting based on the color_dict values
-            format_yellow = workbook.add_format({'bg_color': 'yellow', 'border': 1})
-            format_orange = workbook.add_format({'bg_color': 'orange', 'border': 1})
-            format_red = workbook.add_format({'bg_color': 'red', 'border': 1})
-            border_format = workbook.add_format({'border': 1})
+            # Apply border formatting to all cells (but no bold for cell values)
+            format_yellow = workbook.add_format({'bg_color': 'yellow', 'border': 1})  # No bold for cell values
+            format_orange = workbook.add_format({'bg_color': 'orange', 'border': 1})  # No bold for cell values
+            format_red = workbook.add_format({'bg_color': 'red', 'border': 1})        # No bold for cell values
+            border_format = workbook.add_format({'border': 1})                        # No bold for cell values
 
             for stato_index, stato in enumerate(stati):
                 for row_index, color in enumerate(color_dict[stato]):
@@ -378,15 +376,16 @@ class StatoTargaTab(QWidget):
                             worksheet.write(row_index + 5, stato_index, cell_value, border_format)
 
             # Calculate the counts for each column and add them to the worksheet
-            count_format = workbook.add_format({'bold': True, 'border': 1, 'align': 'center'})
+            count_format = workbook.add_format({'bold': True, 'border': 1, 'align': 'center'})  # Bold for the counts only
             for stato_index, stato in enumerate(stati):
                 count = len([t for t in df[stato] if pd.notna(t)])
                 worksheet.write(max_entries + 5, stato_index, count, count_format)
 
-            # Add total count at the end
+            # Add total count at the end (bold for totals)
             total_count = sum(len([t for t in df[stato] if pd.notna(t)]) for stato in stati)
             worksheet.write(max_entries + 6, 0, 'Total', count_format)
             worksheet.write(max_entries + 6, 1, total_count, count_format)
+
 
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
 
