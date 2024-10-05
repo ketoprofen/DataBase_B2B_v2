@@ -232,60 +232,85 @@ class StatoTargaTab(QWidget):
         return working_days
 
     def export_to_excel(self):
-        # Get the current Flotta name for the filename
+        # Get the current Flotta name for the folder and filename
         flotta_filter = self.search_flotta.text().upper().strip() or "Flotta_All"
+        folder_name = f"{flotta_filter}_{datetime.now().strftime('%Y%m%d')}"
 
-        # Get the current working directory (location from where the script was run)
+        # Create a new directory based on the Flotta name and date if it doesn't exist
         current_dir = os.getcwd()
+        folder_path = os.path.join(current_dir, folder_name)
+        if not os.path.exists(folder_path):
+            os.makedirs(folder_path)
 
-        # Define the filename based on the Flotta and save it in the current directory
+        # Define the filename and save it in the created folder
         filename = f"{flotta_filter}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
-        file_path = os.path.join(current_dir, filename)
+        file_path = os.path.join(folder_path, filename)
 
-        # Define the specific states
+        # Define the initial specific states
         stati = [
-            'Attesa Perizia', 'Attesa Autorizzazione', 'Attesa Ricambi',
-            'Lavorazione Carr.', 'Lavorazione Mecc.', 'Casa Madre',
-            'Altri Lavori', 'Pronta', 'Consegnata'
+            'Attesa Perizia', 'Autorizzare', 'Iniziare Carr.', 'Attesa Ricambi', 'Collaudo Carr.',
+            'Iniziare Mecc.', 'In Meccanica', 'Altri Lavori', 'Collaudo Mecc.', 'Lavaggio',
+            'Controllo Finale', 'Photoshooting', 'Pronta'
         ]
 
         # Get all unique 'targa' values, filtering by Flotta if necessary
         if flotta_filter != "Flotta_All":
-            query = 'SELECT DISTINCT targa, data_incarico FROM records WHERE flotta LIKE ?'
+            query = 'SELECT DISTINCT targa, data_incarico, ditta FROM records WHERE flotta LIKE ?'
             self.cursor.execute(query, (f'%{flotta_filter}%',))
         else:
-            self.cursor.execute('SELECT DISTINCT targa, data_incarico FROM records')
+            self.cursor.execute('SELECT DISTINCT targa, data_incarico, ditta FROM records')
 
-        targas_data = [(row['targa'], row['data_incarico']) for row in self.cursor.fetchall()]
+        targas_data = [(row['targa'], row['data_incarico'], row['ditta']) for row in self.cursor.fetchall()]
         targas = [data[0] for data in targas_data]
+
+        # Extract unique ditta values to dynamically create columns for 'In Carr.'
+        ditta_set = set(data[2] for data in targas_data if data[2])
+        # Merge 'HPS' with 'HPSV' and filter out 'EUSY' if empty
+        ditta_set = set(['HPSV' if ditta.lower() in ['hps', 'hpsv'] else ditta for ditta in ditta_set if ditta.lower() != 'eusy'])
+        in_carr_columns = [f'In Carr. {ditta}' for ditta in sorted(ditta_set) if ditta.lower() != 'approntamento']
+
+        # Update stati to include dynamic In Carr. columns
+        stati = stati[:2] + in_carr_columns + stati[3:]
 
         # Initialize a dictionary to collect 'targa' values by their status
         status_dict = {stato: [] for stato in stati}
 
         # Query for records with the required conditions
         if flotta_filter != "Flotta_All":
-            query = 'SELECT targa, stato, data_incarico, data_consegnata FROM records WHERE flotta LIKE ?'
+            query = 'SELECT targa, stato, data_incarico, data_consegnata, ditta FROM records WHERE flotta LIKE ?'
             self.cursor.execute(query, (f'%{flotta_filter}%',))
         else:
-            self.cursor.execute('SELECT targa, stato, data_incarico, data_consegnata FROM records')
+            self.cursor.execute('SELECT targa, stato, data_incarico, data_consegnata, ditta FROM records')
 
         # Populate the status_dict based on query results
         for row in self.cursor.fetchall():
             targa = row['targa']
-            stato = row['stato']
+            stato = row['stato'].strip().lower() if row['stato'] else ''
             data_incarico = row['data_incarico']
             data_consegnata = row['data_consegnata']
+            ditta = row['ditta']
 
-            # Include "Consegnata" only if "data_consegnata" is not None and matches today's date
-            if stato == 'Consegnata':
-                if data_consegnata is not None:
-                    consegnata_date = datetime.strptime(data_consegnata, '%d/%m/%Y')
-                    if consegnata_date.date() == datetime.today().date():
-                        status_dict[stato].append((targa, data_incarico))
+            # Update stato for merged columns
+            if stato in ['attesa autorizzazione', 'autorizzare']:
+                stato = 'Autorizzare'
+            elif stato in ['lavorazione mecc.', 'in meccanica']:
+                stato = 'In Meccanica'
+            elif stato in ['pronte', 'pronta']:
+                stato = 'Pronta'
+            elif stato in ['lavorazione carr.'] and ditta and ditta.lower() != 'approntamento':
+                if ditta.lower() in ['hps', 'hpsv']:
+                    ditta = 'HPSV'
+                stato = f'In Carr. {ditta}'
+            elif stato in ['preventivare', 'attesa perizia']:
+                stato = 'Attesa Perizia'
+            elif stato in ['attesa ricambi']:
+                stato = 'Attesa Ricambi'
+            elif stato in ['altri lavori', 'casa madre']:
+                stato = 'Altri Lavori'
 
-            else:
-                if stato in status_dict:
-                    status_dict[stato].append((targa, data_incarico))
+            # Always append to the correct stato, including "Pronta" and "Autorizzare"
+            if stato in status_dict:
+                status_dict[stato].append((targa, data_incarico))
 
         # Find the maximum number of entries for any status to create a balanced DataFrame
         max_entries = max(len(entries) for entries in status_dict.values())
@@ -299,7 +324,7 @@ class StatoTargaTab(QWidget):
         for stato in stati:
             for targa, data_incarico in status_dict[stato]:
                 color = None
-                if data_incarico and stato != 'Consegnata':
+                if data_incarico and stato != 'Pronta':
                     data_incarico_date = datetime.strptime(data_incarico, '%d/%m/%Y')
                     working_days = self.calculate_working_days(data_incarico_date, datetime.now())
                     if 10 < working_days <= 15:
@@ -312,51 +337,56 @@ class StatoTargaTab(QWidget):
 
         df = pd.DataFrame({stato: [targa for targa, _ in status_dict[stato]] for stato in stati})
 
-        # Add custom header row with Flotta name and timestamp
-        export_data = pd.DataFrame([[
-            f"Flotta: {flotta_filter}",
-            f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        ]], columns=["Info", "Timestamp"])
-
-        # Append the data under the custom header
+        # Add custom header rows with Flotta name and timestamp
         with pd.ExcelWriter(file_path, engine='xlsxwriter') as writer:
-            export_data.to_excel(writer, sheet_name='Sheet1', index=False, header=False, startrow=0)
-            # Write the DataFrame with column headers starting from row 2
-            df.to_excel(writer, sheet_name='Sheet1', startrow=2, index=False, header=True)
-
             # Get the XlsxWriter workbook and worksheet objects
+            df.to_excel(writer, sheet_name='Veicoli presenti', startrow=4, index=False, header=False)
             workbook = writer.book
-            worksheet = writer.sheets['Sheet1']
+            worksheet = writer.sheets['Veicoli presenti']
+
+            # Set up header format
+            header_format = workbook.add_format({'bold': True, 'align': 'center', 'valign': 'vcenter', 'border': 1})
+            title_format = workbook.add_format({'bold': True, 'font_size': 14, 'align': 'center', 'valign': 'vcenter'})
+            timestamp_format = workbook.add_format({'align': 'right', 'valign': 'vcenter'})
+
+            # Merge cells for the title and write the title
+            worksheet.merge_range('A1:R1', f'Veicoli {flotta_filter} presenti in RC TOP CAR', title_format)
+            worksheet.merge_range('A2:R2', f'Rev. 4.0', header_format)
+            worksheet.merge_range('A3:R3', f'Generated on: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}', timestamp_format)
+
+            # Write headers for each status column
+            for stato_index, stato in enumerate(stati):
+                worksheet.write(4, stato_index, stato, header_format)
 
             # Apply color formatting based on the color_dict values
             format_yellow = workbook.add_format({'bg_color': 'yellow', 'border': 1})
             format_orange = workbook.add_format({'bg_color': 'orange', 'border': 1})
             format_red = workbook.add_format({'bg_color': 'red', 'border': 1})
-            bold_format = workbook.add_format({'bold': True, 'border': 1})
             border_format = workbook.add_format({'border': 1})
 
             for stato_index, stato in enumerate(stati):
-                col_letter = chr(ord('A') + stato_index)  # Get column letter (A, B, C, etc.)
-                worksheet.write(2, stato_index, stato, bold_format)  # Write header with bold formatting
                 for row_index, color in enumerate(color_dict[stato]):
-                    if color == 'yellow':
-                        worksheet.write(row_index + 3, stato_index, df.iloc[row_index, stato_index], format_yellow)
-                    elif color == 'orange':
-                        worksheet.write(row_index + 3, stato_index, df.iloc[row_index, stato_index], format_orange)
-                    elif color == 'red':
-                        worksheet.write(row_index + 3, stato_index, df.iloc[row_index, stato_index], format_red)
-                    else:
-                        worksheet.write(row_index + 3, stato_index, df.iloc[row_index, stato_index], border_format)
+                    cell_value = df.iloc[row_index, stato_index]
+                    if cell_value is not None:
+                        if color == 'yellow':
+                            worksheet.write(row_index + 5, stato_index, cell_value, format_yellow)
+                        elif color == 'orange':
+                            worksheet.write(row_index + 5, stato_index, cell_value, format_orange)
+                        elif color == 'red':
+                            worksheet.write(row_index + 5, stato_index, cell_value, format_red)
+                        else:
+                            worksheet.write(row_index + 5, stato_index, cell_value, border_format)
 
             # Calculate the counts for each column and add them to the worksheet
+            count_format = workbook.add_format({'bold': True, 'border': 1, 'align': 'center'})
             for stato_index, stato in enumerate(stati):
-                count = len([t for t in df[stato] if t is not None])
-                worksheet.write(max_entries + 3, stato_index, count, bold_format)
+                count = len([t for t in df[stato] if pd.notna(t)])
+                worksheet.write(max_entries + 5, stato_index, count, count_format)
 
             # Add total count at the end
-            total_count = sum(len([t for t in df[stato] if t is not None]) for stato in stati)
-            worksheet.write(max_entries + 4, 0, 'Total', bold_format)
-            worksheet.write(max_entries + 4, 1, total_count, bold_format)
+            total_count = sum(len([t for t in df[stato] if pd.notna(t)]) for stato in stati)
+            worksheet.write(max_entries + 6, 0, 'Total', count_format)
+            worksheet.write(max_entries + 6, 1, total_count, count_format)
 
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
 
