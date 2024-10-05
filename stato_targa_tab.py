@@ -232,7 +232,7 @@ class StatoTargaTab(QWidget):
         return working_days
 
     def export_to_excel(self):
-        # Get the current Flotta name for the filename
+    # Get the current Flotta name for the filename
         flotta_filter = self.search_flotta.text().upper().strip() or "Flotta_All"
 
         # Get the current working directory (location from where the script was run)
@@ -262,7 +262,12 @@ class StatoTargaTab(QWidget):
         status_dict = {stato: [] for stato in stati}
         
         # Query for records with the required conditions
-        self.cursor.execute('SELECT targa, stato, data_consegnata FROM records')
+        if flotta_filter != "Flotta_All":
+            query = 'SELECT targa, stato, data_consegnata FROM records WHERE flotta LIKE ?'
+            self.cursor.execute(query, (f'%{flotta_filter}%',))
+        else:
+            self.cursor.execute('SELECT targa, stato, data_consegnata FROM records')
+        
         for row in self.cursor.fetchall():
             targa = row['targa']
             stato = row['stato']
@@ -306,7 +311,6 @@ class StatoTargaTab(QWidget):
             
             # Calculate the row for placing the formulas (one row below the last data row)
             formula_row = max_entries + 4  # Add 3 to account for header rows and 0-index
-            
                     
             worksheet.write_formula(f'A{formula_row}', f'COUNTIF(A4:A{formula_row-1},"<>")')
             worksheet.write_formula(f'B{formula_row}', f'COUNTIF(B4:B{formula_row-1},"<>")')
@@ -322,6 +326,7 @@ class StatoTargaTab(QWidget):
 
             # Add any additional formulas as needed for other columns
         QMessageBox.information(self, "Export Complete", f"Data successfully exported to {file_path}")
+
 
     def showEvent(self, event):
         """Re-load data every time the tab is shown."""
