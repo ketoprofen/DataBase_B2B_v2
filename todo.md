@@ -1,9 +1,6 @@
 # De facut
 - Tab Notifiche sa poata sa fie ordonate pe coloane dinamic 
-- In toate excel-ulurile sa fie colorate based on age of item. working_days cu legenda 
-- Need to modify more the template of the excel - add legenda 
-- Tab 2 - sa genereze file ul excel intr un folder dedicat tab2 la fel ca si tab ul 3 
-- header tab 2 sa fie mai mic pana la coloana O
+- Add tab 4 pentru statistici - tabel de definit, putem sa ne jucam intre timp 
 
 --------------------------------nice to have-----------------------------------------
 - dark theme 
