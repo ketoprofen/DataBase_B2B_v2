@@ -350,7 +350,7 @@ class StatoTargaTab(QWidget):
             timestamp_format = workbook.add_format({'align': 'right', 'valign': 'vcenter', 'bold': True, 'border': 1})
 
             # Merge cells for the title and write the title (bold for title)
-            worksheet.merge_range('A2:R2', f'Veicoli {flotta_filter} presenti in RC TOP CAR | Rev. 4.0 | Generated on: {datetime.now().strftime("%d/%m/%Y Ore %H:%M")}', title_format)
+            worksheet.merge_range('B2:M2', f'Veicoli {flotta_filter} presenti in RC TOP CAR | Rev. 4.0 | Generato in Data: {datetime.now().strftime("%d/%m/%Y Ore %H:%M")}', title_format)
 
             # Write headers for each status column (bold headers)
             for stato_index, stato in enumerate(stati):
