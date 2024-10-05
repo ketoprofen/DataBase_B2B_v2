@@ -3,6 +3,7 @@
 - In toate excel-ulurile sa fie colorate based on age of item. working_days cu legenda 
 - Need to modify more the template of the excel - add legenda 
 - Tab 2 - sa genereze file ul excel intr un folder dedicat tab2 la fel ca si tab ul 3 
+- header tab 2 sa fie mai mic pana la coloana O
 
 --------------------------------nice to have-----------------------------------------
 - dark theme 
