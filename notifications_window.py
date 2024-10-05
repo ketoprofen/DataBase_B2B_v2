@@ -1,9 +1,11 @@
 # notifications_window.py
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QTableView, QHeaderView
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLineEdit, QPushButton, QLabel, QTableView, QHeaderView, QMessageBox
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QColor, QStandardItemModel, QStandardItem, QPalette
 import pandas as pd
 from datetime import datetime, timedelta
+from openpyxl import Workbook
+from openpyxl.styles import PatternFill, Border, Side, Font
 
 class NotificationsWindow(QWidget):
     def __init__(self, conn):
@@ -26,6 +28,10 @@ class NotificationsWindow(QWidget):
         self.search_box.textChanged.connect(self.load_notifications)  # Update notifications when text changes
         button_layout.addWidget(self.search_box)
 
+        # Export Button
+        self.export_button = QPushButton("Esporta Excel", self)
+        self.export_button.clicked.connect(self.export_to_excel)
+        button_layout.addWidget(self.export_button)
 
         button_layout.addStretch()
 
@@ -118,7 +124,7 @@ class NotificationsWindow(QWidget):
         count_over_20 = 0
 
         if notifications:
-            df = pd.DataFrame(notifications)
+            self.df = pd.DataFrame(notifications)
 
             def get_color(working_days):
                 if 10 < working_days <= 15:
@@ -130,18 +136,18 @@ class NotificationsWindow(QWidget):
                 else:
                     return ''
 
-            df['Color'] = df['working_days'].apply(get_color)
+            self.df['Color'] = self.df['working_days'].apply(get_color)
 
             # Calculate row counts for each interval
-            count_10_15 = len(df[(df['working_days'] > 10) & (df['working_days'] <= 15)])
-            count_16_20 = len(df[(df['working_days'] > 15) & (df['working_days'] <= 20)])
-            count_over_20 = len(df[df['working_days'] > 20])
+            count_10_15 = len(self.df[(self.df['working_days'] > 10) & (self.df['working_days'] <= 15)])
+            count_16_20 = len(self.df[(self.df['working_days'] > 15) & (self.df['working_days'] <= 20)])
+            count_over_20 = len(self.df[self.df['working_days'] > 20])
 
             standard_model = QStandardItemModel()
-            headers = [col for col in df.columns if col != 'Color']
+            headers = [col for col in self.df.columns if col != 'Color' and col.lower() != 'id']
             standard_model.setHorizontalHeaderLabels(headers)
 
-            for _, row in df.iterrows():
+            for _, row in self.df.iterrows():
                 items = []
                 for field in headers:
                     item = QStandardItem(str(row[field]))
@@ -151,11 +157,10 @@ class NotificationsWindow(QWidget):
             self.table.setModel(standard_model)
             self.table.setEditTriggers(QTableView.NoEditTriggers)
             self.table.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-            self.table.hideColumn(0)
 
             # Apply color to rows
             for row in range(standard_model.rowCount()):
-                color = df.iloc[row]['Color']
+                color = self.df.iloc[row]['Color']
                 if color:
                     for col in range(standard_model.columnCount()):
                         item = standard_model.item(row, col)
@@ -177,3 +182,58 @@ class NotificationsWindow(QWidget):
         day_generator = (start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1))
         working_days = sum(1 for day in day_generator if day.weekday() < 5)
         return working_days
+
+    def export_to_excel(self):
+        if hasattr(self, 'df') and not self.df.empty:
+            # Ensure 'Id' column is removed before exporting
+            export_df = self.df.copy()
+            export_df = export_df.loc[:, ~export_df.columns.str.lower().isin(['id', 'color'])]
+            # Reorder columns to place 'data_consegnata' right after 'stato'
+            columns = list(export_df.columns)
+            if 'stato' in columns and 'data_consegnata' in columns:
+                stato_index = columns.index('stato')
+                data_consegnata_index = columns.index('data_consegnata')
+                if data_consegnata_index != stato_index + 1:
+                    columns.insert(stato_index + 1, columns.pop(data_consegnata_index))
+                export_df = export_df[columns]
+
+            # Create Excel workbook and worksheet
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Lavorazioni Critiche"
+
+            # Define border style and font style
+            thin_border = Border(left=Side(style='thin'),
+                                 right=Side(style='thin'),
+                                 top=Side(style='thin'),
+                                 bottom=Side(style='thin'))
+            bold_font = Font(bold=True)
+
+            # Write headers with bold font and borders
+            for col_num, header in enumerate(export_df.columns, 1):
+                cell = ws.cell(row=1, column=col_num, value=header)
+                cell.border = thin_border
+                cell.font = bold_font
+
+            # Write data with colors and borders
+            for row_num, row in enumerate(export_df.itertuples(index=False), 2):
+                for col_num, value in enumerate(row, 1):
+                    cell = ws.cell(row=row_num, column=col_num, value=value)
+                    cell.border = thin_border
+                    if hasattr(row, 'working_days'):
+                        if row.working_days > 10 and row.working_days <= 15:
+                            cell.fill = PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid")  # Yellow
+                        elif row.working_days > 15 and row.working_days <= 20:
+                            cell.fill = PatternFill(start_color="FFA500", end_color="FFA500", fill_type="solid")  # Orange
+                        elif row.working_days > 20:
+                            cell.fill = PatternFill(start_color="FF0000", end_color="FF0000", fill_type="solid")  # Red
+
+            # Create filename based on search text and current date
+            search_text = self.search_box.text().strip().replace(' ', '_')
+            current_date = datetime.now().strftime('%Y%m%d')
+            filename = f'Lavorazioni_Critiche_{search_text}_{current_date}.xlsx' if search_text else f'Lavorazioni_critiche_all_{current_date}.xlsx'
+            wb.save(filename)
+
+            # Show message box
+            QMessageBox.information(self, "Esportazione Completata Con successo!", f"File '{filename}' creato correttamente.")
+            print(f"Excel file '{filename}' has been created.")

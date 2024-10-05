@@ -57,6 +57,7 @@ The following Python libraries are required to run this project:
 - `sqlite3`: For database management
 - `pandas`: For data manipulation
 - `bcrypt`: For password hashing and verification
+- `jinja2` : for color pallet in the generated excel file
 
 These dependencies can be manually installed (skip this step if the dependencies were installed at step 2) through `pip` using:
 ```bash
