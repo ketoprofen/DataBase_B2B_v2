@@ -122,7 +122,6 @@ class MainWindow(QWidget):
         self.insert_layout.addRow('Modello:', self.text_modello)
         self.insert_layout.addRow('Entrata:', self.date_entrata)
         
-
         incarico_layout = QHBoxLayout()
         incarico_layout.addWidget(self.date_incarico)
         self.button_add = QPushButton('Aggiungi Record')
@@ -225,13 +224,16 @@ class MainWindow(QWidget):
 
         self.radio_all_data = QRadioButton('Estrapola tutti i dati in Excel')
         self.radio_exclude_consegnata = QRadioButton('Estrapola tutti i dati escludendo "Consegnata"')
+       # self.radio_stato_report = QRadioButton('Estrapola report per stato')  # Added radio button
 
         self.radio_group = QButtonGroup()
         self.radio_group.addButton(self.radio_all_data)
         self.radio_group.addButton(self.radio_exclude_consegnata)
+        #self.radio_group.addButton(self.radio_stato_report)  # Added to group
 
         self.extrapolate_layout.addRow(self.radio_all_data)
         self.extrapolate_layout.addRow(self.radio_exclude_consegnata)
+        #self.extrapolate_layout.addRow(self.radio_stato_report)  # Added to layout
 
         self.checkbox_exclude_consegnata = QCheckBox('Solo "Consegnata"')
         self.checkbox_exclude_consegnata.setChecked(False)
@@ -242,6 +244,7 @@ class MainWindow(QWidget):
 
         self.radio_all_data.toggled.connect(self.update_extrapolate_options)
         self.radio_exclude_consegnata.toggled.connect(self.update_extrapolate_options)
+        #self.radio_stato_report.toggled.connect(self.update_extrapolate_options)  # Added connection
 
         self.button_extrapolate_execute = QPushButton('Estrapola Excel')
         self.button_extrapolate_execute.clicked.connect(lambda: execute_extrapolate(self))
@@ -300,7 +303,6 @@ class MainWindow(QWidget):
         
         # StatoTarga Tab (new tab for Stato and Targa)
         self.stato_targa_tab = StatoTargaTab(self.conn)
-
 
         # Add tabs to tab widget
         self.tab_widget.addTab(self.data_tab, "Dati")

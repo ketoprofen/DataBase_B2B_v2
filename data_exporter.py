@@ -1,9 +1,14 @@
+from PyQt5.QtWidgets import QFileDialog, QMessageBox
 import pandas as pd
-from PyQt5.QtWidgets import QMessageBox
 from datetime import datetime
 
-
 def execute_extrapolate(main_window):
+    # Select the folder to save the file
+    folder_path = QFileDialog.getExistingDirectory(main_window, 'Seleziona la cartella di destinazione')
+    if not folder_path:
+        QMessageBox.warning(main_window, 'Errore', 'Nessuna cartella selezionata.')
+        return
+
     if main_window.radio_all_data.isChecked():
         query = 'SELECT * FROM records'
         params = []
@@ -26,14 +31,6 @@ def execute_extrapolate(main_window):
             filename = f'DataBaseB2B_{flotta}_consegnata.xlsx'
         else:
             filename = f'DataBaseB2B_{flotta}.xlsx'
-    elif main_window.radio_stato_report.isChecked():
-        query = '''
-            SELECT targa, stato, data_consegnata 
-            FROM records 
-            WHERE NOT (stato = "Consegnata" AND data_consegnata < ?)
-        '''
-        params = [datetime.now().strftime('%d/%m/%Y')]
-        filename = 'DataBaseB2B_stato.xlsx'
     else:
         QMessageBox.warning(main_window, 'Errore di selezione', 'Per favore, seleziona un\'opzione.')
         return
@@ -60,21 +57,11 @@ def execute_extrapolate(main_window):
                 columns_order.append('data_consegnata')
             df = df[columns_order]
 
-        if main_window.radio_stato_report.isChecked():
-            stato_counts = df['stato'].value_counts()
-            total_count = len(df)
-            df_summary = pd.DataFrame({
-                'Stato': stato_counts.index,
-                'Conteggio': stato_counts.values
-            })
-            total_row = pd.DataFrame({'Stato': ['Totale'], 'Conteggio': [total_count]})
-            df_summary = pd.concat([df_summary, total_row], ignore_index=True)
-            with pd.ExcelWriter(filename) as writer:
-                df.to_excel(writer, index=False, sheet_name='Dati')
-                df_summary.to_excel(writer, index=False, sheet_name='Riepilogo')
-        else:
-            df.to_excel(filename, index=False)
-        QMessageBox.information(main_window, 'Successo', f'Dati esportati nel file {filename}')
+        # Define the full path for the output file
+        full_filename = f'{folder_path}/{filename}'
+
+        df.to_excel(full_filename, index=False)
+        QMessageBox.information(main_window, 'Successo', f'Dati esportati nel file {full_filename}')
         main_window.extrapolate_group.hide()
     except Exception as e:
         QMessageBox.warning(main_window, 'Errore', str(e))
