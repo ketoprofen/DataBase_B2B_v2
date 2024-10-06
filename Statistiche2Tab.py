@@ -1,4 +1,4 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QSizePolicy, QMessageBox, QFileDialog, QPushButton
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QSizePolicy, QMessageBox, QFileDialog, QPushButton
 from PyQt5 import QtGui
 import datetime
 import pandas as pd
@@ -14,25 +14,33 @@ class Statistiche2Tab(QWidget):
     def init_ui(self):
         layout = QVBoxLayout()
 
+        # Create a horizontal layout for the title and export button
+        header_layout = QHBoxLayout()
+
         # Add title for Statistiche 2
         title_label = QLabel("Statistiche 2: Entrate e Consegnate per Flotta")
         title_label.setFont(QtGui.QFont("Arial", 16, QtGui.QFont.Bold))
-        layout.addWidget(title_label)
+        header_layout.addWidget(title_label)
+
+        # Add button to export data to Excel (smaller and on the right of the title)
+        self.export_button = QPushButton("Esporta Excel")
+        self.export_button.setMaximumWidth(80)
+        self.export_button.clicked.connect(self.export_to_excel)
+        header_layout.addStretch()
+        header_layout.addWidget(self.export_button)
+
+        # Add header layout to the main layout
+        layout.addLayout(header_layout)
 
         # Table widget for showing the data
         self.statistiche_table = QTableWidget()
         self.statistiche_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.statistiche_table)
 
-        # Add button to export data to Excel
-        self.export_button = QPushButton("Esporta in Excel")
-        self.export_button.clicked.connect(self.export_to_excel)
-        layout.addWidget(self.export_button)
-
         # Set the layout for the tab
         self.setLayout(layout)
 
-        # Load data into the table
+        # Load data into the table in real-time
         self.load_data()
 
     def load_data(self):
@@ -45,12 +53,12 @@ class Statistiche2Tab(QWidget):
             # Fetch records grouped by 'flotta' with normalization
             self.cursor.execute("""
                 SELECT TRIM(UPPER(flotta)) AS normalized_flotta,
-                       COUNT(CASE WHEN strftime('%Y-%m', data_incarico) = ? AND date(data_incarico) <= ? THEN 1 END) AS entrate,
-                       COUNT(CASE WHEN strftime('%Y-%m', data_consegnata) = ? THEN 1 END) AS uscite_consegnate
+                       SUM(CASE WHEN substr(data_incarico, 4, 2) = ? AND substr(data_incarico, 7, 4) = ? THEN 1 ELSE 0 END) AS entrate,
+                       SUM(CASE WHEN substr(data_consegnata, 4, 2) = ? AND substr(data_consegnata, 7, 4) = ? THEN 1 ELSE 0 END) AS uscite_consegnate
                 FROM records
-                WHERE flotta IS NOT NULL
+                WHERE flotta IS NOT NULL AND flotta != ''
                 GROUP BY normalized_flotta
-            """, (f"{current_year}-{current_month:02}", current_date.strftime('%Y-%m-%d'), f"{current_year}-{current_month:02}"))
+            """, (f"{current_month:02}", f"{current_year}", f"{current_month:02}", f"{current_year}"))
             records = self.cursor.fetchall()
 
             # Set the number of rows and columns in the table
@@ -99,3 +107,7 @@ class Statistiche2Tab(QWidget):
                 QMessageBox.information(self, "Successo", f"File salvato con successo in {file_path}")
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to export data: {e}")
+
+    def refresh_data(self):
+        # Reload data in the table in real-time
+        self.load_data()
