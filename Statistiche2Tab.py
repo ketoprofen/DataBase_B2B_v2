@@ -1,5 +1,6 @@
 from PyQt5.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTableWidget, QTableWidgetItem, QSizePolicy, QMessageBox, QFileDialog, QPushButton
 from PyQt5 import QtGui
+from PyQt5.QtCore import QTimer, QSize
 import datetime
 import pandas as pd
 
@@ -10,6 +11,8 @@ class Statistiche2Tab(QWidget):
         self.cursor = self.conn.cursor()
         self.setWindowTitle("Statistiche 2 - Estrapolazioni")
         self.init_ui()
+        self.setup_timer()
+        self.adjust_window_size()
 
     def init_ui(self):
         layout = QVBoxLayout()
@@ -42,6 +45,16 @@ class Statistiche2Tab(QWidget):
 
         # Load data into the table in real-time
         self.load_data()
+
+    def setup_timer(self):
+        # Set up a timer to refresh data every 2 seconds
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.load_data)
+        self.timer.start(2000)  # Refresh every 2000 ms (2 seconds)
+
+    def adjust_window_size(self):
+        # Adjust window size to fit the table
+        self.resize(QSize(800, 600))  # You can adjust the width and height as needed
 
     def load_data(self):
         try:
