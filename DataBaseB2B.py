@@ -18,6 +18,7 @@ from stato_targa_tab import StatoTargaTab
 from login_dialog import LoginDialog
 from data_importer import import_data
 from data_exporter import execute_extrapolate
+from RecapDataTab import RecapDataTab
 
 class MainWindow(QWidget):
     def __init__(self):
@@ -79,6 +80,15 @@ class MainWindow(QWidget):
                 if col not in columns:
                     self.cursor.execute(f'ALTER TABLE records ADD COLUMN {col} {col_type}')
             self.conn.commit()
+            
+        # Create the ditta_operatori table if it doesn't exist
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS ditta_operatori (
+            ditta TEXT PRIMARY KEY,
+            nr_operatori INTEGER
+        )
+    ''')
+        self.conn.commit()
 
     def init_ui(self):
         self.tab_widget = QTabWidget()
@@ -303,11 +313,15 @@ class MainWindow(QWidget):
         
         # StatoTarga Tab (new tab for Stato and Targa)
         self.stato_targa_tab = StatoTargaTab(self.conn)
+        
+        #RecapDataTab 
+        self.recap_data_tab = RecapDataTab(self.conn)
 
         # Add tabs to tab widget
         self.tab_widget.addTab(self.data_tab, "Dati")
         self.tab_widget.addTab(self.notifications_tab, "Notifiche")
         self.tab_widget.addTab(self.stato_targa_tab, "Stato Lavorazioni")
+        self.tab_widget.addTab(self.recap_data_tab, "Statische")
 
         self.layout.addWidget(self.tab_widget)
         self.setLayout(self.layout)
