@@ -89,6 +89,32 @@ class MainWindow(QWidget):
         )
     ''')
         self.conn.commit()
+        
+        # Create the weekly_statistics table if it doesn't exist
+        self.cursor.execute('''
+        CREATE TABLE IF NOT EXISTS weekly_statistics (
+            ditta TEXT,
+            week_number INTEGER,
+            year INTEGER,
+            vetture_finite_nel_settimana INTEGER,
+            totale_pz INTEGER,
+            media_vetture_al_gg REAL,
+            media_pz_per_vettura REAL,
+            media_pezzi_al_gg REAL,
+            media_pz_per_op_al_gg REAL,
+            nr_operatori INTEGER,
+            working_days INTEGER,
+            PRIMARY KEY (ditta, week_number, year)
+        )
+    ''')
+        self.conn.commit()
+        
+        # Check and add the 'working_days' column if it doesn't exist
+        self.cursor.execute("PRAGMA table_info(weekly_statistics)")
+        weekly_columns = [info[1] for info in self.cursor.fetchall()]
+        if 'working_days' not in weekly_columns:
+            self.cursor.execute("ALTER TABLE weekly_statistics ADD COLUMN working_days INTEGER")
+            self.conn.commit()
 
     def init_ui(self):
         self.tab_widget = QTabWidget()
