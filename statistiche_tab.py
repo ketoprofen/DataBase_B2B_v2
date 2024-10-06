@@ -543,9 +543,19 @@ class StatisticheTab(QtWidgets.QWidget):
 
     def recalculate_week_row(self, table_widget, row_index):
         try:
-            nr_operatori = int(table_widget.item(row_index, 1).text())
-            totale_pz = float(table_widget.item(row_index, 8).text())
-            working_days_so_far = int(table_widget.item(row_index, 2).text())
+            # Get item safely
+            nr_operatori_item = table_widget.item(row_index, 1)
+            totale_pz_item = table_widget.item(row_index, 8)
+            working_days_so_far_item = table_widget.item(row_index, 2)
+
+            # Ensure items are not None
+            if not nr_operatori_item or not totale_pz_item or not working_days_so_far_item:
+                # print(f"One or more required items are None for row {row_index}. Skipping recalculation.")
+                return
+
+            nr_operatori = int(nr_operatori_item.text())
+            totale_pz = float(totale_pz_item.text())
+            working_days_so_far = int(working_days_so_far_item.text())
 
             media_pz_per_op_al_gg = totale_pz / (nr_operatori * working_days_so_far) if nr_operatori and working_days_so_far else 0
 
@@ -554,3 +564,4 @@ class StatisticheTab(QtWidgets.QWidget):
             table_widget.itemChanged.connect(self.on_week_item_changed)
         except Exception as e:
             print(f"Error recalculating week row {row_index}: {e}")
+
