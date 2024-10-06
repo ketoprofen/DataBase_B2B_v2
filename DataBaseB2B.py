@@ -9,7 +9,7 @@ from PyQt5.QtWidgets import (
     QTabWidget
 )
 from PyQt5.QtSql import QSqlDatabase, QSqlQueryModel
-from PyQt5.QtCore import QDate, Qt, QEvent
+from PyQt5.QtCore import QDate, Qt, QEvent, pyqtSignal
 
 from select_record_dialog import SelectRecordDialog
 from datetime import datetime, timedelta
@@ -18,9 +18,11 @@ from stato_targa_tab import StatoTargaTab
 from login_dialog import LoginDialog
 from data_importer import import_data
 from data_exporter import execute_extrapolate
-from RecapDataTab import RecapDataTab
+from RecapDataTab import RecapDataTab  # Ensure the correct import
 
 class MainWindow(QWidget):
+    data_changed = pyqtSignal()  # Signal to indicate data change
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle('DatabaseB2B')
@@ -80,35 +82,35 @@ class MainWindow(QWidget):
                 if col not in columns:
                     self.cursor.execute(f'ALTER TABLE records ADD COLUMN {col} {col_type}')
             self.conn.commit()
-            
+
         # Create the ditta_operatori table if it doesn't exist
         self.cursor.execute('''
-        CREATE TABLE IF NOT EXISTS ditta_operatori (
-            ditta TEXT PRIMARY KEY,
-            nr_operatori INTEGER
-        )
-    ''')
+            CREATE TABLE IF NOT EXISTS ditta_operatori (
+                ditta TEXT PRIMARY KEY,
+                nr_operatori INTEGER
+            )
+        ''')
         self.conn.commit()
-        
+
         # Create the weekly_statistics table if it doesn't exist
         self.cursor.execute('''
-        CREATE TABLE IF NOT EXISTS weekly_statistics (
-            ditta TEXT,
-            week_number INTEGER,
-            year INTEGER,
-            vetture_finite_nel_settimana INTEGER,
-            totale_pz INTEGER,
-            media_vetture_al_gg REAL,
-            media_pz_per_vettura REAL,
-            media_pezzi_al_gg REAL,
-            media_pz_per_op_al_gg REAL,
-            nr_operatori INTEGER,
-            working_days INTEGER,
-            PRIMARY KEY (ditta, week_number, year)
-        )
-    ''')
+            CREATE TABLE IF NOT EXISTS weekly_statistics (
+                ditta TEXT,
+                week_number INTEGER,
+                year INTEGER,
+                vetture_finite_nel_settimana INTEGER,
+                totale_pz INTEGER,
+                media_vetture_al_gg REAL,
+                media_pz_per_vettura REAL,
+                media_pezzi_al_gg REAL,
+                media_pz_per_op_al_gg REAL,
+                nr_operatori INTEGER,
+                working_days INTEGER,
+                PRIMARY KEY (ditta, week_number, year)
+            )
+        ''')
         self.conn.commit()
-        
+
         # Check and add the 'working_days' column if it doesn't exist
         self.cursor.execute("PRAGMA table_info(weekly_statistics)")
         weekly_columns = [info[1] for info in self.cursor.fetchall()]
@@ -157,7 +159,7 @@ class MainWindow(QWidget):
         self.insert_layout.addRow('Targa:', self.text_targa)
         self.insert_layout.addRow('Modello:', self.text_modello)
         self.insert_layout.addRow('Entrata:', self.date_entrata)
-        
+
         incarico_layout = QHBoxLayout()
         incarico_layout.addWidget(self.date_incarico)
         self.button_add = QPushButton('Aggiungi Record')
@@ -260,16 +262,13 @@ class MainWindow(QWidget):
 
         self.radio_all_data = QRadioButton('Estrapola tutti i dati in Excel')
         self.radio_exclude_consegnata = QRadioButton('Estrapola tutti i dati escludendo "Consegnata"')
-       # self.radio_stato_report = QRadioButton('Estrapola report per stato')  # Added radio button
 
         self.radio_group = QButtonGroup()
         self.radio_group.addButton(self.radio_all_data)
         self.radio_group.addButton(self.radio_exclude_consegnata)
-        #self.radio_group.addButton(self.radio_stato_report)  # Added to group
 
         self.extrapolate_layout.addRow(self.radio_all_data)
         self.extrapolate_layout.addRow(self.radio_exclude_consegnata)
-        #self.extrapolate_layout.addRow(self.radio_stato_report)  # Added to layout
 
         self.checkbox_exclude_consegnata = QCheckBox('Solo "Consegnata"')
         self.checkbox_exclude_consegnata.setChecked(False)
@@ -280,7 +279,6 @@ class MainWindow(QWidget):
 
         self.radio_all_data.toggled.connect(self.update_extrapolate_options)
         self.radio_exclude_consegnata.toggled.connect(self.update_extrapolate_options)
-        #self.radio_stato_report.toggled.connect(self.update_extrapolate_options)  # Added connection
 
         self.button_extrapolate_execute = QPushButton('Estrapola Excel')
         self.button_extrapolate_execute.clicked.connect(lambda: execute_extrapolate(self))
@@ -336,18 +334,19 @@ class MainWindow(QWidget):
 
         # Notifications Tab
         self.notifications_tab = NotificationsWindow(self.conn)
-        
-        # StatoTarga Tab (new tab for Stato and Targa)
+
+        # StatoTarga Tab
         self.stato_targa_tab = StatoTargaTab(self.conn)
-        
-        #RecapDataTab 
+
+        # RecapDataTab
         self.recap_data_tab = RecapDataTab(self.conn)
+        self.data_changed.connect(self.recap_data_tab.refresh_data)  # Connect the signal
 
         # Add tabs to tab widget
         self.tab_widget.addTab(self.data_tab, "Dati")
         self.tab_widget.addTab(self.notifications_tab, "Notifiche")
         self.tab_widget.addTab(self.stato_targa_tab, "Stato Lavorazioni")
-        self.tab_widget.addTab(self.recap_data_tab, "Statische")
+        self.tab_widget.addTab(self.recap_data_tab, "Statistiche")
 
         self.layout.addWidget(self.tab_widget)
         self.setLayout(self.layout)
@@ -380,9 +379,9 @@ class MainWindow(QWidget):
         headers = [
             'ID', 'Flotta', 'Targa', 'Modello', 'Entrata', 'Data Incarico',
             'Ditta', 'Inizio Mecc.', 'Fine Mecc.', 'Inizio Carr.', 'Fine Carr.',
-            'Pezzi Carr.', 'Stato', 'Note', 'Prev. Uscita', 'Data Consegnata','Downtime',
+            'Pezzi Carr.', 'Stato', 'Note', 'Prev. Uscita', 'Data Consegnata', 'Downtime',
             'GG Entrata_Incarico', 'GG Inizio Mecc.', 'GG Inizio Carr.',
-            'GG Lavorazione Mecc.', 'GG Lavorazione Carr.',  
+            'GG Lavorazione Mecc.', 'GG Lavorazione Carr.',
         ]
 
         for i, header in enumerate(headers):
@@ -411,6 +410,10 @@ class MainWindow(QWidget):
             QMessageBox.warning(self, 'Errore di input', 'Inserisci le date nel formato dd/mm/yyyy')
             return
 
+        # Adjust dates to last working day
+        entrata = self.adjust_date_to_last_working_day(entrata)
+        data_incarico = self.adjust_date_to_last_working_day(data_incarico)
+
         self.cursor.execute('''
             SELECT COUNT(*) FROM records WHERE targa = ? AND entrata = ? AND data_incarico = ?
         ''', (targa, entrata, data_incarico))
@@ -436,6 +439,7 @@ class MainWindow(QWidget):
             ''', (flotta, targa, modello, entrata, data_incarico, stato,
                   gg_entrata_data_incarico, prev_uscita))
             self.conn.commit()
+            self.data_changed.emit()  # Emit signal to update statistics
             self.text_flotta.clear()
             self.text_targa.clear()
             self.text_modello.clear()
@@ -515,6 +519,24 @@ class MainWindow(QWidget):
                     QMessageBox.warning(self, 'Errore di input', 'Inserisci le date nel formato dd/mm/yyyy')
                     return
 
+        # Adjust dates to last working day
+        date_fields_dict = {
+            'inizio_mecc': inizio_mecc,
+            'fine_mecc': fine_mecc,
+            'inizio_carr': inizio_carr,
+            'fine_carr': fine_carr
+        }
+        for key, date_str in date_fields_dict.items():
+            if date_str:
+                adjusted_date = self.adjust_date_to_last_working_day(date_str)
+                date_fields_dict[key] = adjusted_date
+
+        # Update variables with adjusted dates
+        inizio_mecc = date_fields_dict['inizio_mecc']
+        fine_mecc = date_fields_dict['fine_mecc']
+        inizio_carr = date_fields_dict['inizio_carr']
+        fine_carr = date_fields_dict['fine_carr']
+
         gg_inizio_meccanica = self.calculate_working_days(data_incarico, inizio_mecc) if inizio_mecc else None
         gg_inizio_carr = self.calculate_working_days(data_incarico, inizio_carr) if inizio_carr else None
         gg_lavorazione_mecc = self.calculate_working_days(inizio_mecc, fine_mecc) if inizio_mecc and fine_mecc else None
@@ -551,6 +573,7 @@ class MainWindow(QWidget):
                   gg_inizio_meccanica, gg_inizio_carr, gg_lavorazione_mecc, gg_lavorazione_carr,
                   downtime, data_consegnata, targa, entrata, data_incarico))
             self.conn.commit()
+            self.data_changed.emit()  # Emit signal to update statistics
             QMessageBox.information(self, 'Successo', 'Record aggiornato con successo.')
             self.update_fields_widget.hide()
             self.load_data()
@@ -576,6 +599,7 @@ class MainWindow(QWidget):
                             DELETE FROM records WHERE targa = ? AND entrata = ? AND data_incarico = ?
                         ''', (targa, entrata, data_incarico))
                         self.conn.commit()
+                        self.data_changed.emit()  # Emit signal to update statistics
                         QMessageBox.information(self, 'Successo', 'Record cancellato con successo.')
                         self.update_fields_widget.hide()
                         self.load_data()
@@ -592,12 +616,13 @@ class MainWindow(QWidget):
         if not start_date_str or not end_date_str:
             return 0
         try:
-            start_date = datetime.strptime(start_date_str, '%d/%m/%Y')
-            end_date = datetime.strptime(end_date_str, '%d/%m/%Y')
+            start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
+            end_date = datetime.strptime(end_date_str, '%d/%m/%Y').date()
             if start_date > end_date:
                 return 0
+            holidays = self.get_holidays_in_rome(start_date.year)
             day_generator = (start_date + timedelta(days=x) for x in range((end_date - start_date).days + 1))
-            working_days = sum(1 for day in day_generator if day.weekday() < 5)
+            working_days = sum(1 for day in day_generator if day.weekday() < 5 and day not in holidays)
             return working_days
         except ValueError:
             return 0
@@ -606,16 +631,62 @@ class MainWindow(QWidget):
         if not start_date_str:
             return None
         try:
-            start_date = datetime.strptime(start_date_str, '%d/%m/%Y')
+            start_date = datetime.strptime(start_date_str, '%d/%m/%Y').date()
             current_date = start_date
             added_days = 0
+            holidays = self.get_holidays_in_rome(start_date.year)
             while added_days < days_to_add:
                 current_date += timedelta(days=1)
-                if current_date.weekday() < 5:
+                if current_date.weekday() < 5 and current_date not in holidays:
                     added_days += 1
             return current_date.strftime('%d/%m/%Y')
         except ValueError:
             return None
+
+    def get_holidays_in_rome(self, year):
+        holidays = [
+            datetime(year, 1, 1).date(),   # New Year's Day
+            datetime(year, 1, 6).date(),   # Epiphany
+            datetime(year, 4, 25).date(),  # Liberation Day
+            datetime(year, 5, 1).date(),   # Labor Day
+            datetime(year, 6, 2).date(),   # Republic Day
+            datetime(year, 6, 29).date(),  # St. Peter and Paul
+            datetime(year, 8, 15).date(),  # Assumption Day
+            datetime(year, 11, 1).date(),  # All Saints' Day
+            datetime(year, 12, 8).date(),  # Immaculate Conception
+            datetime(year, 12, 25).date(), # Christmas Day
+            datetime(year, 12, 26).date(), # St. Stephen's Day
+        ]
+        # Include Easter Monday
+        easter_monday = self.calculate_easter_monday(year)
+        holidays.append(easter_monday)
+        return holidays
+
+    def calculate_easter_monday(self, year):
+        a = year % 19
+        b = year // 100
+        c = year % 100
+        d = b // 4
+        e = b % 4
+        f = (b + 8) // 25
+        g = (b - f + 1) // 3
+        h = (19 * a + b - d - g + 15) % 30
+        i = c // 4
+        k = c % 4
+        l = (32 + 2 * e + 2 * i - h - k) % 7
+        m = (a + 11 * h + 22 * l) // 451
+        month = (h + l - 7 * m + 114) // 31
+        day = ((h + l - 7 * m + 114) % 31) + 1
+        easter_sunday = datetime(year, month, day).date()
+        easter_monday = easter_sunday + timedelta(days=1)
+        return easter_monday
+
+    def adjust_date_to_last_working_day(self, date_str):
+        date_obj = datetime.strptime(date_str, '%d/%m/%Y').date()
+        holidays = self.get_holidays_in_rome(date_obj.year)
+        while date_obj.weekday() >= 5 or date_obj in holidays:
+            date_obj -= timedelta(days=1)
+        return date_obj.strftime('%d/%m/%Y')
 
     def check_notifications(self):
         self.notifications_tab.load_notifications()
@@ -625,6 +696,7 @@ class MainWindow(QWidget):
 
     def load_notifications_tab(self):
         self.notifications_tab.load_notifications()
+
 
 
 

@@ -8,7 +8,7 @@ class RecapDataTab(QtWidgets.QWidget):
         self.conn = conn
         self.setWindowTitle("Statistiche")
         self.init_ui()
-        
+
     def init_ui(self):
         layout = QtWidgets.QVBoxLayout()
 
@@ -50,7 +50,7 @@ class RecapDataTab(QtWidgets.QWidget):
         # Weekly Statistics Tables
         self.week_tables = []
 
-         # Get all the weeks in the current month
+        # Get all the weeks in the current month
         today = datetime.date.today()
         year, month = today.year, today.month
         weeks_in_month = self.get_weeks_in_month(year, month)
@@ -74,6 +74,13 @@ class RecapDataTab(QtWidgets.QWidget):
         # Set the layout
         self.setLayout(layout)
 
+    def refresh_data(self):
+        # Reload data in monthly table
+        self.load_monthly_data()
+        # Reload data in weekly tables
+        for week_num, week_dates, week_table in self.week_tables:
+            self.load_weekly_data(week_num, week_dates, week_table)
+
     def get_weeks_in_month(self, year, month):
         c = calendar.Calendar()
         month_weeks = c.monthdatescalendar(year, month)
@@ -89,7 +96,6 @@ class RecapDataTab(QtWidgets.QWidget):
             if week_dates:
                 weeks.append((week_number, week_dates))
         return weeks
-
 
     def iso_year_start(self, iso_year):
         "The Gregorian calendar date of the first day of the given ISO year"
@@ -238,14 +244,14 @@ class RecapDataTab(QtWidgets.QWidget):
                     # Retrieve stored data
                     cursor.execute("""
                         SELECT vetture_finite_nel_settimana, totale_pz, media_vetture_al_gg, media_pz_per_vettura,
-                            media_pezzi_al_gg, media_pz_per_op_al_gg, working_days
+                               media_pezzi_al_gg, media_pz_per_op_al_gg, working_days
                         FROM weekly_statistics
                         WHERE ditta = ? AND week_number = ? AND year = ?
                     """, (ditta, week_number, current_year))
                     result = cursor.fetchone()
                     if result:
                         (vetture_finite_nel_settimana, totale_pz, media_vetture_al_gg, media_pz_per_vettura,
-                        media_pezzi_al_gg, media_pz_per_op_al_gg, working_days) = result
+                         media_pezzi_al_gg, media_pz_per_op_al_gg, working_days) = result
                     else:
                         vetture_finite_nel_settimana = totale_pz = media_vetture_al_gg = media_pz_per_vettura = media_pezzi_al_gg = media_pz_per_op_al_gg = 0
                         working_days = 0
@@ -260,8 +266,8 @@ class RecapDataTab(QtWidgets.QWidget):
                             WHERE (CASE WHEN UPPER(ditta) = 'HPSV' THEN 'HPS' ELSE ditta END) = ?
                             AND stato IN ('Pronta', 'Consegnata')
                             AND date(substr(data_consegnata, 7, 4) || '-' ||
-                                    substr(data_consegnata, 4, 2) || '-' ||
-                                    substr(data_consegnata, 1, 2)) BETWEEN ? AND ?
+                                     substr(data_consegnata, 4, 2) || '-' ||
+                                     substr(data_consegnata, 1, 2)) BETWEEN ? AND ?
                         """, (ditta, start_date_str, end_date_str))
                         vetture_finite_nel_settimana = cursor.fetchone()[0]
 
@@ -270,8 +276,8 @@ class RecapDataTab(QtWidgets.QWidget):
                             WHERE (CASE WHEN UPPER(ditta) = 'HPSV' THEN 'HPS' ELSE ditta END) = ?
                             AND pezzi_carr IS NOT NULL
                             AND date(substr(data_consegnata, 7, 4) || '-' ||
-                                    substr(data_consegnata, 4, 2) || '-' ||
-                                    substr(data_consegnata, 1, 2)) BETWEEN ? AND ?
+                                     substr(data_consegnata, 4, 2) || '-' ||
+                                     substr(data_consegnata, 1, 2)) BETWEEN ? AND ?
                         """, (ditta, start_date_str, end_date_str))
                         totale_pz = cursor.fetchone()[0] or 0
                     else:
@@ -293,8 +299,8 @@ class RecapDataTab(QtWidgets.QWidget):
                                 media_pz_per_op_al_gg, nr_operatori, working_days
                             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                         """, (ditta, week_number, current_year, vetture_finite_nel_settimana, totale_pz,
-                            media_vetture_al_gg, media_pz_per_vettura, media_pezzi_al_gg,
-                            media_pz_per_op_al_gg, nr_operatori, working_days))
+                              media_vetture_al_gg, media_pz_per_vettura, media_pezzi_al_gg,
+                              media_pz_per_op_al_gg, nr_operatori, working_days))
                         self.conn.commit()
 
                 # Populate the table
@@ -324,8 +330,6 @@ class RecapDataTab(QtWidgets.QWidget):
             QtWidgets.QMessageBox.critical(self, "Error", f"Failed to load weekly data: {e}")
 
     def get_holidays_in_rome(self, year):
-        # Define the holidays in Rome for the given year
-        # For demonstration purposes, we'll include some fixed holidays
         holidays = [
             datetime.date(year, 1, 1),   # New Year's Day
             datetime.date(year, 1, 6),   # Epiphany
@@ -345,7 +349,6 @@ class RecapDataTab(QtWidgets.QWidget):
         return holidays
 
     def calculate_easter_monday(self, year):
-        # Calculate Easter Sunday using Anonymous Gregorian algorithm
         a = year % 19
         b = year // 100
         c = year % 100
