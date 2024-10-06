@@ -18,7 +18,7 @@ from stato_targa_tab import StatoTargaTab
 from login_dialog import LoginDialog
 from data_importer import import_data
 from data_exporter import execute_extrapolate
-from RecapDataTab import RecapDataTab  # Ensure the correct import
+from statistiche_tab import StatisticheTab  # Ensure the correct import
 
 class MainWindow(QWidget):
     data_changed = pyqtSignal()  # Signal to indicate data change
@@ -338,15 +338,15 @@ class MainWindow(QWidget):
         # StatoTarga Tab
         self.stato_targa_tab = StatoTargaTab(self.conn)
 
-        # RecapDataTab
-        self.recap_data_tab = RecapDataTab(self.conn)
-        self.data_changed.connect(self.recap_data_tab.refresh_data)  # Connect the signal
+        # StatisticheTab
+        self.statistiche_tab = StatisticheTab(self.conn)
+        self.data_changed.connect(self.statistiche_tab.refresh_data)  # Connect the signal
 
         # Add tabs to tab widget
         self.tab_widget.addTab(self.data_tab, "Dati")
         self.tab_widget.addTab(self.notifications_tab, "Notifiche")
         self.tab_widget.addTab(self.stato_targa_tab, "Stato Lavorazioni")
-        self.tab_widget.addTab(self.recap_data_tab, "Statistiche")
+        self.tab_widget.addTab(self.statistiche_tab, "Statistiche")
 
         self.layout.addWidget(self.tab_widget)
         self.setLayout(self.layout)

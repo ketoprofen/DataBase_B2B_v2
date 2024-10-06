@@ -1,9 +1,10 @@
+#statistiche_tab
 from PyQt5 import QtWidgets, QtGui, QtCore
 import datetime
 import calendar
 import pandas as pd
 
-class RecapDataTab(QtWidgets.QWidget):
+class StatisticheTab(QtWidgets.QWidget):
     def __init__(self, conn):
         super().__init__()
         self.conn = conn
