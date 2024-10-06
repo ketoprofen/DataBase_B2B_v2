@@ -29,7 +29,7 @@ class StatisticheTab(QtWidgets.QWidget):
         self.year_spin.setValue(current_year)
         
         # Export Button
-        self.export_button = QtWidgets.QPushButton("Esporta in Excel")
+        self.export_button = QtWidgets.QPushButton("Esporta Excel")
         self.export_button.clicked.connect(self.export_to_excel)
         
         # Add widgets to the layout
