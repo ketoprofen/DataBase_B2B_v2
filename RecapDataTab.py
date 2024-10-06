@@ -1,6 +1,7 @@
 from PyQt5 import QtWidgets, QtGui, QtCore
 import datetime
 import calendar
+import pandas as pd
 
 class RecapDataTab(QtWidgets.QWidget):
     def __init__(self, conn):
@@ -10,20 +11,38 @@ class RecapDataTab(QtWidgets.QWidget):
         self.init_ui()
 
     def init_ui(self):
-        layout = QtWidgets.QVBoxLayout()
+        layout = QtWidgets.QVBoxLayout()  # Define the layout
 
-        # Title for Monthly Statistics
-        monthly_label = QtWidgets.QLabel("Statistiche al Mese in Corso")
-        monthly_label.setFont(QtGui.QFont("Arial", 14, QtGui.QFont.Bold))
-        layout.addWidget(monthly_label)
+        # Add controls for month and year selection
+        controls_layout = QtWidgets.QHBoxLayout()
+        
+        month_label = QtWidgets.QLabel("Mese:")
+        self.month_combo = QtWidgets.QComboBox()
+        self.month_combo.addItems([calendar.month_name[i] for i in range(1, 13)])
+        self.month_combo.setCurrentIndex(datetime.date.today().month - 1)
+        
+        year_label = QtWidgets.QLabel("Anno:")
+        self.year_spin = QtWidgets.QSpinBox()
+        current_year = datetime.date.today().year
+        self.year_spin.setRange(2000, current_year + 5)
+        self.year_spin.setValue(current_year)
+        
+        # Export Button
+        self.export_button = QtWidgets.QPushButton("Esporta in Excel")
+        self.export_button.clicked.connect(self.export_to_excel)
+        
+        # Add widgets to the layout
+        controls_layout.addWidget(month_label)
+        controls_layout.addWidget(self.month_combo)
+        controls_layout.addWidget(year_label)
+        controls_layout.addWidget(self.year_spin)
+        controls_layout.addStretch()
+        controls_layout.addWidget(self.export_button)
+        
+        layout.addLayout(controls_layout)
 
-        # Table widget for Monthly Statistics
-        self.monthly_table = QtWidgets.QTableWidget()
-        self.monthly_table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-        layout.addWidget(self.monthly_table, stretch=1)
-
-        # Set table headers for monthly table
-        headers = [
+        # Define headers here
+        self.headers = [
             "DITTA",
             "NR. OPERATORI",
             "GG.LAV",
@@ -34,12 +53,14 @@ class RecapDataTab(QtWidgets.QWidget):
             "MEDIA PZ. PER OP. AL GG",
             "TOTALE PZ."
         ]
-        self.monthly_table.setColumnCount(len(headers))
-        self.monthly_table.setHorizontalHeaderLabels(headers)
-        self.monthly_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
 
-        # Load monthly data
-        self.load_monthly_data()
+        # Table widget for Monthly Statistics
+        self.monthly_table = QtWidgets.QTableWidget()
+        self.monthly_table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        self.monthly_table.setColumnCount(len(self.headers))
+        self.monthly_table.setHorizontalHeaderLabels(self.headers)
+        self.monthly_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+        layout.addWidget(self.monthly_table, stretch=1)
 
         # Separator
         separator = QtWidgets.QFrame()
@@ -50,31 +71,115 @@ class RecapDataTab(QtWidgets.QWidget):
         # Weekly Statistics Tables
         self.week_tables = []
 
-        # Get all the weeks in the current month
-        today = datetime.date.today()
-        year, month = today.year, today.month
-        weeks_in_month = self.get_weeks_in_month(year, month)
-
-        for week_index, (week_num, week_dates) in enumerate(weeks_in_month):
-            week_label = QtWidgets.QLabel(f"Settimana {week_index + 1}")
-            week_label.setFont(QtGui.QFont("Arial", 14, QtGui.QFont.Bold))
-            layout.addWidget(week_label)
-
-            week_table = QtWidgets.QTableWidget()
-            week_table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
-            week_table.setColumnCount(len(headers))
-            week_table.setHorizontalHeaderLabels(headers)
-            week_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
-            layout.addWidget(week_table, stretch=1)
-            self.week_tables.append((week_num, week_dates, week_table))
-
-            # Load weekly data
-            self.load_weekly_data(week_num, week_dates, week_table)
-
         # Set the layout
-        self.setLayout(layout)
+        self.setLayout(layout)  # Ensure the layout is set here
+
+        # Connect signals to reload data when selection changes
+        self.month_combo.currentIndexChanged.connect(self.refresh_data)
+        self.year_spin.valueChanged.connect(self.refresh_data)
+
+        # Load data
+        self.refresh_data()
 
     def refresh_data(self):
+        # Clear existing week tables
+        self.clear_week_tables()
+        # Reload data in monthly table
+        self.load_monthly_data()
+        # Reload data in weekly tables
+        self.load_weekly_tables()
+
+    def load_weekly_tables(self):
+            # Get selected month and year
+            month = self.month_combo.currentIndex() + 1
+            year = self.year_spin.value()
+
+            # Get all the weeks in the selected month
+            weeks_in_month = self.get_weeks_in_month(year, month)
+
+            for week_index, (week_num, week_dates) in enumerate(weeks_in_month):
+                week_label = QtWidgets.QLabel(f"Settimana {week_index + 1}")
+                week_label.setFont(QtGui.QFont("Arial", 14, QtGui.QFont.Bold))
+                self.layout().addWidget(week_label)
+
+                week_table = QtWidgets.QTableWidget()
+                week_table.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+                week_table.setColumnCount(len(self.headers))
+                week_table.setHorizontalHeaderLabels(self.headers)
+                week_table.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.Stretch)
+                self.layout().addWidget(week_table, stretch=1)
+                self.week_tables.append((week_num, week_dates, week_table))
+
+                # Load weekly data
+                self.load_weekly_data(week_num, week_dates, week_table)
+
+    def export_to_excel(self):
+            try:
+                # Ask user for file location
+                options = QtWidgets.QFileDialog.Options()
+                file_path, _ = QtWidgets.QFileDialog.getSaveFileName(
+                    self,
+                    "Salva File",
+                    f"Statistiche_{self.year_spin.value()}_{self.month_combo.currentIndex() + 1}.xlsx",
+                    "Excel Files (*.xlsx);;All Files (*)",
+                    options=options
+                )
+                if file_path:
+                    # Collect data from monthly table
+                    monthly_data = self.get_table_data(self.monthly_table)
+
+                    # Collect data from weekly tables
+                    weekly_data = []
+                    for week_index, (week_num, week_dates, week_table) in enumerate(self.week_tables):
+                        week_data = self.get_table_data(week_table)
+                        weekly_data.append((f"Settimana {week_index + 1}", week_data))
+
+                    # Export to Excel
+                    with pd.ExcelWriter(file_path) as writer:
+                        # Monthly data
+                        df_monthly = pd.DataFrame(monthly_data, columns=self.headers)
+                        df_monthly.to_excel(writer, sheet_name="Mese", index=False)
+
+                        # Weekly data
+                        for week_name, data in weekly_data:
+                            df_week = pd.DataFrame(data, columns=self.headers)
+                            df_week.to_excel(writer, sheet_name=week_name, index=False)
+
+                    QtWidgets.QMessageBox.information(self, "Successo", f"File salvato con successo in {file_path}")
+            except Exception as e:
+                QtWidgets.QMessageBox.critical(self, "Error", f"Failed to export data: {e}")
+
+    def get_table_data(self, table_widget):
+        data = []
+        for row in range(table_widget.rowCount()):
+            row_data = []
+            for column in range(table_widget.columnCount()):
+                item = table_widget.item(row, column)
+                row_data.append(item.text() if item else '')
+            data.append(row_data)
+        return data
+    
+    def clear_week_tables(self):
+        layout = self.layout()  # Get the existing layout
+        if layout is None:
+            return  # If layout is not set, skip the clearing process
+
+        for i in reversed(range(layout.count())):
+            widget = layout.itemAt(i).widget()
+            if isinstance(widget, QtWidgets.QTableWidget) and widget != self.monthly_table:
+                layout.removeWidget(widget)
+                widget.deleteLater()
+            elif isinstance(widget, QtWidgets.QLabel) and widget.text().startswith("Settimana"):
+                layout.removeWidget(widget)
+                widget.deleteLater()
+            elif isinstance(widget, QtWidgets.QFrame):
+                # Stop removing widgets when we reach the separator
+                break
+            else:
+                continue
+        self.week_tables.clear()
+
+    # Rest of the methods...
         # Reload data in monthly table
         self.load_monthly_data()
         # Reload data in weekly tables
