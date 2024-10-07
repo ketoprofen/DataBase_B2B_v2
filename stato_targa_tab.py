@@ -104,7 +104,6 @@ class StatoTargaTab(QWidget):
                 WHERE (flotta LIKE ? OR targa LIKE ? OR ditta LIKE ?)
                 AND (stato != "Consegnata" OR (stato = "Consegnata" AND data_consegnata = ?))
             '''
-            # Use the same search term for all three fields
             search_param = f'%{search_filter}%'
             self.cursor.execute(query, (search_param, search_param, search_param, today_str))
         else:
@@ -135,18 +134,20 @@ class StatoTargaTab(QWidget):
             stato = row['stato']
             ditta = row['ditta'] or "---"  # Replace None or empty string with "---"
             data_incarico = row['data_incarico']
+            data_consegnata = row['data_consegnata']
 
             # Append ditta in parentheses to targa only if the stato is "Lavorazione Carr."
             if stato == 'Lavorazione Carr.':
-                # This functionality can be used standalone (without the else) to always append ditta to targa
                 targa_with_ditta = f"{targa} ({ditta})"
             else:
                 targa_with_ditta = targa
 
             if stato in stato_columns:
-                if stato == 'Consegnata':
-                    color = 'green'  # Consegnata status should always be green
-                else: 
+                if stato == 'Consegnata' and data_consegnata == today_str:
+                    # Explicitly handle "Consegnata" with today’s date, color it green
+                    color = 'green'
+                    stato_columns[stato].append((targa_with_ditta, color))
+                elif stato != 'Consegnata':
                     color = self.get_notification_color(data_incarico)
                     if color == 'yellow':
                         count_10_15 += 1
@@ -173,7 +174,6 @@ class StatoTargaTab(QWidget):
 
         # Add sum labels to sum_layout
         for sum_value in column_sums:
-            # i want to concatenate the string " " with the str(sum_value) to make it look like "  5"
             sum_label = QLabel("      " + str(sum_value))
             self.sum_layout.addWidget(sum_label)
 
@@ -199,6 +199,7 @@ class StatoTargaTab(QWidget):
 
         self.table_view.setModel(standard_model)
         self.table_view.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
+
 
     def clear_layout(self, layout):
         """Utility function to clear all widgets in a layout."""
