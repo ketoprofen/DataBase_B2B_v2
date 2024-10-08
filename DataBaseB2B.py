@@ -28,7 +28,8 @@ class MainWindow(QWidget):
         super().__init__()
         self.setWindowTitle('DatabaseB2B')
         self.resize(1400, 800)
-        self.conn = sqlite3.connect('app_database.db')
+        self.conn = sqlite3.connect('app_database.db', timeout=30)
+        self.conn.execute('PRAGMA journal_mode=WAL;')  # Enable WAL mode for better concurrency
         self.conn.row_factory = sqlite3.Row
         self.cursor = self.conn.cursor()
         self.create_records_table()
