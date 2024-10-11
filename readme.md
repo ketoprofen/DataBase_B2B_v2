@@ -109,5 +109,7 @@ The following features are planned for future releases:
    - **Mobile Responsiveness:** Enhance the interface to support mobile devices.
 
 ## Useful commands:
+```bash
 pyinstaller --onefile --windowed DataBaseB2B.py --add-data "app_database.db;."
+```
 Creates a standalone executable for DataBaseB2B.py, including the database file, without a console window.
