@@ -53,15 +53,30 @@ Follow these steps to set up and run **DataBaseB2B** on a Windows machine.
 
 ## Dependencies
 The following Python libraries are required to run this project:
+
+Core Libraries:
+
 - `PyQt5`: For GUI development
-- `sqlite3`: For database management
-- `pandas`: For data manipulation
-- `bcrypt`: For password hashing and verification
-- `jinja2` : for color pallet in the generated excel file
+- `numpy`: For numerical computations
+- `pandas`: For data manipulation and analysis
+- `bcrypt`: For password hashing
+- `openpyxl`: For reading/writing Excel files
+
+Automatically Installed (Dependencies):
+
+- `PyQt5-sip`: Binding generator for PyQt5
+- `PyQt5-Qt5`: Contains necessary Qt libraries
+- `Jinja2`: Template rendering for UI components
+- `MarkupSafe`: Handles safe HTML/XML escaping
+- `python-dateutil`: Extensions for date manipulation
+- `pytz`: Provides timezone definitions
+- `six`: Compatibility between Python versions
+- `tzdata`: IANA timezone database
+- `et-xmlfile`: Supports writing XML files
 
 These dependencies can be manually installed (skip this step if the dependencies were installed at step 2) through `pip` using:
 ```bash
-pip install PyQt5 sqlite3 pandas bcrypt
+pip install PyQt5 numpy pandas bcrypt openpyxl
 ```
 
 ## Usage
@@ -95,3 +110,4 @@ The following features are planned for future releases:
 
 ## Useful commands:
 pyinstaller --onefile --windowed DataBaseB2B.py --add-data "app_database.db;."
+Creates a standalone executable for DataBaseB2B.py, including the database file, without a console window.
